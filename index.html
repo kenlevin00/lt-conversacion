@@ -1,0 +1,225 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>Conversación · LT Spanish</title>
+<style>
+ :root{--ink:#1c1c1c;--mute:#6b6b6b;--line:#cfcfcf;--bg:#fbfaf7;--red:#b3261e;--red-bg:#fdf1f0}
+ *{box-sizing:border-box}
+ body{font:17px/1.4 system-ui,-apple-system,sans-serif;color:var(--ink);background:var(--bg);margin:0;padding:14px 14px 40px;max-width:600px;margin:auto}
+ h1{font-size:20px;font-weight:600;margin:0 0 10px}
+ .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0}
+ label{color:var(--mute);font-size:15px}
+ select,input[type=number]{font-size:16px;padding:8px;border:1px solid var(--line);border-radius:6px;background:#fff}
+ button{font-size:17px;padding:14px 16px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);min-height:48px}
+ button:active{background:#eee}
+ button.primary{background:var(--ink);color:#fff;border-color:var(--ink);width:100%;margin-top:8px}
+ button.primary:active{background:#444}
+ #stage{margin:16px 0;padding:20px 16px;border:2px solid var(--line);border-radius:12px;background:#fff;min-height:190px}
+ #stage.listening{border-color:var(--red);background:var(--red-bg)}
+ #phase{font-size:14px;color:var(--mute);margin-bottom:6px}
+ #status{font-size:26px;font-weight:600;min-height:34px}
+ #heard{font-size:20px;margin-top:10px;min-height:28px}
+ #shown{font-size:18px;color:var(--mute);margin-top:6px;min-height:24px}
+ #ctrl{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+ #ctrl button{width:100%}
+ #ctrl button.wide{grid-column:1/3}
+ #out{width:100%;height:150px;font:13px/1.35 ui-monospace,Menlo,monospace;padding:8px;border:1px solid var(--line);border-radius:6px;margin-top:8px;background:#fff}
+ .hide{display:none!important}
+ .note{font-size:14px;color:var(--mute)}
+ #setup{padding-bottom:6px}
+ #dot{display:inline-block;width:12px;height:12px;border-radius:50%;background:var(--line);margin-right:6px;vertical-align:middle}
+ #stage.listening #dot{background:var(--red);animation:p 1s infinite}
+ @keyframes p{50%{opacity:.35}}
+ @media (prefers-reduced-motion:reduce){#stage.listening #dot{animation:none}}
+</style></head><body>
+
+<h1>Conversación</h1>
+
+<div id="setup">
+ <div class="row"><label>Set <select id="setSel"></select></label>
+  <label>Voz <select id="voiceSel"><option value="">(auto)</option></select></label></div>
+ <div class="row"><label>Velocidad <select id="rate"><option value="0.75">lenta</option><option value="0.9" selected>normal</option><option value="1">rápida</option></select></label>
+  <label>Pausa antes del micro <select id="gap"><option value="300">0.3 s</option><option value="600" selected>0.6 s</option><option value="1000">1 s</option></select></label>
+  <label><input type="checkbox" id="ack" checked> «Bien» entre frases</label></div>
+ <button class="primary" id="start">Empezar</button>
+ <p class="note">Ceiling 42. Mantén la pantalla encendida. La primera vez, Safari pedirá permiso para el micrófono.</p>
+</div>
+
+<div id="stage" class="hide">
+ <div id="phase"></div>
+ <div id="status"><span id="dot"></span><span id="stxt"></span></div>
+ <div id="heard"></div>
+ <div id="shown"></div>
+ <div id="ctrl">
+  <button id="bRepeat">Repetir</button>
+  <button id="bShow">Mostrar</button>
+  <button id="bAgain">Otra vez</button>
+  <button id="bNext">Siguiente</button>
+  <button id="bAnswer" class="wide hide">Toca para contestar</button>
+  <button id="bStop" class="wide">Terminar sesión</button>
+ </div>
+</div>
+
+<div id="done" class="hide">
+ <p><strong>Sesión terminada.</strong> Copia el transcript y pégalo en el chat.</p>
+ <button class="primary" id="copy">Copiar transcript</button>
+ <textarea id="out" readonly></textarea>
+ <div class="row"><button id="bNew">Nueva sesión</button><button id="bResetUsed">Olvidar sets usados</button></div>
+</div>
+
+<script>
+var SETS=[{"w": ["Es muy caro.", "Quiero verte.", "No puedo venir."], "a": [["Me gustaría comer contigo mañana.", "I would like to eat with you tomorrow."], ["Es listo, pero no está listo.", "He is smart, but he is not ready."], ["Se quedan en casa porque no tienen dinero.", "They stay at home because they have no money."], ["Le daré algo mañana.", "I will give him something tomorrow."], ["Comería más, pero estoy tan cansado.", "I would eat more, but I am so tired."]], "b": ["¿Qué te gusta comer?", "¿En qué piensas ahora?", "¿Dónde estarás mañana?", "¿Eres una persona ocupada?", "¿Podrías venir conmigo esta noche?"]}, {"w": ["Estoy en casa.", "Quiero salir.", "Es muy tarde."], "a": [["Nos gustaría comer con ustedes.", "We would like to eat with you (pl)."], ["Somos listos, pero no estamos listos.", "We are smart, but we are not ready."], ["Están vendiendo la casa.", "They are selling the house."], ["Quiero decirle algo importante.", "I want to tell him something important."], ["Te llamaré esta noche.", "I will call you tonight."]], "b": ["¿De dónde eres?", "¿Qué comerás mañana?", "¿Piensas mucho en el dinero?", "¿Te gustaría vivir en España?", "¿Estás aburrido ahora?"]}, {"w": ["Tengo tiempo.", "Voy a comer.", "Está bien."], "a": [["Sueño con vivir en el pueblo.", "I dream of living in the town."], ["Es aburrido, pero no está aburrido.", "He is boring, but he is not bored."], ["Hemos comprado la carne.", "We have bought the meat."], ["Me doy cuenta ahora.", "I realize now."], ["Iría contigo, pero no puedo.", "I would go with you, but I can't."]], "b": ["¿Con qué sueñas?", "¿Cómo estás ahora?", "¿Qué comprarías con mucho dinero?", "¿Le das el dinero?", "¿Quieres quedarte en casa esta noche?"]}, {"w": ["Lo sé.", "No lo tengo.", "Vamos a ver."], "a": [["Depende de si quiere venir.", "It depends on whether he wants to come."], ["¿Cómo es él? Es muy sincero.", "What is he like? He is very sincere."], ["Estoy preparando el desayuno.", "I am preparing breakfast."], ["Les hablaré mañana.", "I will speak to them tomorrow."], ["Me gustan las casas grandes.", "I like big houses."]], "b": ["¿Qué estás comiendo ahora?", "¿Cuándo comerás?", "¿Eres feliz?", "¿Te gustaría hablar conmigo mañana?", "¿Por qué no te quedas?"]}, {"w": ["Salgo mañana.", "Estoy cansado.", "Es para ti."], "a": [["Está comiendo con ella ahora.", "He is eating with her now."], ["Seré muy feliz en España.", "I will be very happy in Spain."], ["Nos quedamos aquí esta semana.", "We are staying here this week."], ["Les doy la casa.", "I give them the house."], ["Bailaría, pero no sé bailar.", "I would dance, but I don't know how to dance."]], "b": ["¿Qué te gustaría hacer mañana?", "¿Te enamoras de las personas sinceras?", "¿Dónde quieres vivir?", "¿Estarás cansado mañana?", "¿Estás preocupado ahora?"]}, {"w": ["Nos quedamos.", "Me gusta mucho.", "Puedo ir."], "a": [["¿Me lo darás mañana?", "Will you give it to me tomorrow?"], ["El coche es rojo y está aquí.", "The car is red and it is here."], ["Estamos esperando ahora.", "We are waiting now."], ["Nos hablamos mañana.", "We'll talk to each other tomorrow."], ["Se enamora de ella.", "He falls in love with her."]], "b": ["¿Qué quieres comprar?", "¿Sueñas con vivir en España?", "¿Cómo es ella?", "¿Comerías carne esta noche?", "¿Estás en casa ahora?"]}, {"w": ["No puedo ir.", "Tengo que salir.", "Está aquí."], "a": [["Estoy siendo sincero contigo.", "I am being sincere with you."], ["Es una persona feliz, pero no está feliz.", "She is a happy person, but she is not happy."], ["Han vendido el coche.", "They have sold the car."], ["Pienso mucho en ti.", "I think about you a lot."], ["Nos gustaría venir, pero no podemos.", "We would like to come, but we can't."]], "b": ["¿Qué estás comprando?", "¿Piensas en la situación?", "¿Serás feliz en España?", "¿Te gustan las casas grandes?", "¿Depende de ti?"]}, {"w": ["Vengo ahora.", "Lo veo.", "No es caro."], "a": [["Estoy tan preocupado ahora.", "I am so worried now."], ["La escuela es aburrida.", "School is boring."], ["He perdido el dinero.", "I have lost the money."], ["Les daré la carne.", "I will give them the meat."], ["Me gustaría quedarme aquí.", "I would like to stay here."]], "b": ["¿Qué quieres decirle?", "¿Dónde comerías esta noche?", "¿Es aburrida la escuela?", "¿Te quedarás en casa mañana?", "¿Sueñas con ella?"]}, {"w": ["Es mi casa.", "Estamos aquí.", "Lo quiero."], "a": [["Mi perro está muy cansado.", "My dog is very tired."], ["Es muy sincero, pero no está aquí.", "He is very sincere, but he is not here."], ["Están comprando una casa nueva.", "They are buying a new house."], ["Nos gustaría ir con ustedes.", "We would like to go with you (pl)."], ["¿Por qué no quieres hablar conmigo?", "Why don't you want to talk with me?"]], "b": ["¿Qué comes normalmente?", "¿Irías a España conmigo?", "¿Eres de España?", "¿Cuándo hablarás con él?", "¿Depende de la situación?"]}, {"w": ["Puedo verte.", "Es para mí.", "Estoy listo."], "a": [["Está hablando con ellos ahora.", "He is talking with them now."], ["Estoy listo, vamos.", "I am ready, let's go."], ["Me gustan las personas sinceras.", "I like sincere people."], ["Iré a verte mañana.", "I will go to see you tomorrow."], ["Se quedarían, pero no tienen tiempo.", "They would stay, but they don't have time."]], "b": ["¿Qué te gustaría comer esta noche?", "¿Cómo están ustedes?", "¿Piensas en mí?", "¿Comprarías una casa en el pueblo?", "¿Estás siendo sincero?"]}];
+var CEIL=42, VERSION='conv1';
+var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+var $=function(id){return document.getElementById(id)};
+var LS={get:function(k,d){try{var v=localStorage.getItem(k);return v===null?d:JSON.parse(v)}catch(e){return d}},
+        set:function(k,v){try{localStorage.setItem(k,JSON.stringify(v))}catch(e){}}};
+
+/* ---- setup ---- */
+var used=LS.get('conv:used',[]);
+function fillSets(){
+  var sel=$('setSel'); sel.innerHTML=''; var first=-1;
+  SETS.forEach(function(s,i){
+    var o=document.createElement('option'); o.value=i;
+    o.textContent=(i+1)+(used.indexOf(i)>=0?' (usado)':''); sel.appendChild(o);
+    if(first<0&&used.indexOf(i)<0)first=i;
+  });
+  sel.value=first<0?0:first;
+}
+fillSets();
+function fillVoices(){
+  if(!window.speechSynthesis)return;
+  var vs=speechSynthesis.getVoices().filter(function(v){return /^es/i.test(v.lang)});
+  var sel=$('voiceSel'); sel.innerHTML='<option value="">(auto)</option>';
+  vs.forEach(function(v){var o=document.createElement('option');o.value=v.name;o.textContent=v.name+' · '+v.lang;sel.appendChild(o)});
+  var want=LS.get('conv:voice',''); if(vs.some(function(v){return v.name===want}))sel.value=want;
+}
+fillVoices(); if(window.speechSynthesis)speechSynthesis.onvoiceschanged=fillVoices;
+['rate','gap'].forEach(function(k){var v=LS.get('conv:'+k,null);if(v!==null)$(k).value=v;});
+$('ack').checked=LS.get('conv:ack',true);
+
+/* ---- session state ---- */
+var S=null, attempt=0, rec=null, needsTap=false, timer=null;
+function buildItems(set){
+  var it=[];
+  set.w.forEach(function(es,k){it.push({tag:'W'+(k+1),es:es,phase:'W'})});
+  set.a.forEach(function(p,k){it.push({tag:'A'+(k+1),es:p[0],en:p[1],phase:'A'})});
+  set.b.forEach(function(es,k){it.push({tag:'B'+(k+1),es:es,phase:'B'})});
+  return it;
+}
+var PHASE={W:'Calentamiento — dame el inglés',A:'Serie A — dame el inglés',B:'Serie B — contesta en español'};
+var PHASE_TTS={W:'Calentamiento. Dame el inglés.',A:'Serie A. Dame el inglés.',B:'Serie B. Contesta en español.'};
+function cur(){return S.items[S.i];}
+function bump(){ attempt++; if(timer){clearTimeout(timer);timer=null;} if(rec){try{rec.abort()}catch(e){} rec=null;} if(window.speechSynthesis)speechSynthesis.cancel(); }
+
+$('start').onclick=function(){
+  var si=parseInt($('setSel').value,10);
+  LS.set('conv:voice',$('voiceSel').value); LS.set('conv:rate',$('rate').value); LS.set('conv:gap',$('gap').value); LS.set('conv:ack',$('ack').checked);
+  S={set:si,items:buildItems(SETS[si]),i:-1,t0:Date.now(),lastPhase:null};
+  $('setup').classList.add('hide'); $('done').classList.add('hide'); $('stage').classList.remove('hide');
+  bump(); var a=attempt;
+  speak('Empezamos.',a,function(){ if(a===attempt)next(); });   // spoken inside the tap: unlocks the synth on iOS
+};
+
+/* ---- TTS ---- */
+function voice(){
+  var want=$('voiceSel').value, vs=window.speechSynthesis?speechSynthesis.getVoices():[];
+  return vs.filter(function(x){return x.name===want})[0]||vs.filter(function(x){return /^es/i.test(x.lang)})[0]||null;
+}
+function speak(text,a,cb,rateMul){
+  if(!window.speechSynthesis){cb&&cb();return;}
+  var u=new SpeechSynthesisUtterance(text); u.lang='es-ES'; var v=voice(); if(v)u.voice=v;
+  u.rate=parseFloat($('rate').value)*(rateMul||1);
+  var done=false; function fin(){ if(done)return; done=true; if(a===attempt&&cb)cb(); }
+  u.onend=fin; u.onerror=fin;
+  speechSynthesis.speak(u);
+  setTimeout(fin,12000);
+}
+
+/* ---- recognition ---- */
+function listen(a){
+  var it=cur(); setStage('listening','Escuchando…'); $('heard').textContent=''; $('bAnswer').classList.add('hide');
+  if(!SR){ it.err='no-SR'; setStage('','Este navegador no reconoce voz'); return; }
+  var r; try{ r=new SR(); }catch(e){ it.err='ctor'; setStage('','Sin reconocimiento'); return; }
+  r.lang='es-ES'; r.interimResults=true; r.continuous=false; r.maxAlternatives=1;
+  var text='', errored=null;
+  r.onresult=function(ev){ if(a!==attempt)return;
+    var s=''; for(var k=ev.resultIndex;k<ev.results.length;k++)s+=ev.results[k][0].transcript;
+    text=s; $('heard').textContent=s; };
+  r.onerror=function(ev){ if(a!==attempt)return; errored=ev.error; };
+  r.onend=function(){ if(a!==attempt)return; rec=null;
+    if(text){ it.heard=text; it.err=null; captured(a); return; }
+    if(errored==='not-allowed'||errored==='service-not-allowed'){
+      if(!it.tapTried){ needsTap=true; askTap(it); return; }
+      it.err=errored; setStage('','Micrófono bloqueado — abre la página en Safari'); return;
+    }
+    if(errored==='no-speech'||!errored){
+      if(!it.relisten){ it.relisten=true; listen(a); return; }   // one silent retry
+      it.err='no-speech'; setStage('','No oí nada — «Otra vez» o «Siguiente»'); return;
+    }
+    it.err=errored; setStage('','Error: '+errored+' — «Otra vez» o «Siguiente»');
+  };
+  rec=r;
+  try{ r.start(); }catch(e){ rec=null;
+    if(!it.tapTried){ needsTap=true; askTap(it); }
+    else { it.err='start'; setStage('','No pude abrir el micro'); } }
+}
+function askTap(it){ it.tap=true; setStage('','Toca para contestar'); $('bAnswer').classList.remove('hide'); }
+function captured(a){
+  setStage('','Anotado');
+  var go=function(){ if(a!==attempt)return; timer=setTimeout(function(){ if(a===attempt)next(); },1200); };
+  if($('ack').checked) speak('Bien.',a,go,1.05); else go();
+}
+$('bAnswer').onclick=function(){ cur().tapTried=true; bump(); listen(attempt); };
+
+/* ---- flow ---- */
+function setStage(cls,txt){ $('stage').className=cls; $('stxt').textContent=txt; }
+function say(a){
+  var it=cur(); setStage('','Escucha'); $('heard').textContent=''; $('shown').textContent='';
+  speak(it.es,a,function(){ setTimeout(function(){ if(a!==attempt)return; if(needsTap)askTap(it); else listen(a); },parseInt($('gap').value,10)); });
+}
+function next(){
+  bump(); var a=attempt;
+  S.i++;
+  if(S.i>=S.items.length){ finish(); return; }
+  var it=cur(); it.t=Date.now();
+  $('phase').textContent=PHASE[it.phase]+'  ·  '+it.tag;
+  if(it.phase!==S.lastPhase){ S.lastPhase=it.phase; speak(PHASE_TTS[it.phase],a,function(){ setTimeout(function(){ if(a===attempt)say(a); },500); }); }
+  else say(a);
+}
+$('bNext').onclick=function(){ next(); };
+$('bRepeat').onclick=function(){ var it=cur(); it.repeats=(it.repeats||0)+1; bump(); say(attempt); };
+$('bAgain').onclick=function(){ var it=cur(); it.retries=(it.retries||0)+1; bump(); listen(attempt); };
+$('bShow').onclick=function(){ var it=cur(); it.shown=true; $('shown').textContent=it.es; };
+$('bStop').onclick=function(){ finish(); };
+
+/* ---- transcript ---- */
+function finish(){
+  bump();
+  var d=new Date(), ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  var v=voice();
+  var lines=['CONV1;set='+(S.set+1)+';ceil='+CEIL+';date='+ds+';voice='+(v?v.name:'?')+';gap='+$('gap').value+';rate='+$('rate').value+';min='+((Date.now()-S.t0)/60000).toFixed(1)];
+  S.items.forEach(function(it,k){
+    if(k>S.i)return;
+    var f=[];
+    if(it.repeats)f.push('rep='+it.repeats);
+    if(it.retries)f.push('retry='+it.retries);
+    if(it.shown)f.push('shown');
+    if(it.tap)f.push('tap');
+    if(it.err)f.push('err='+it.err);
+    lines.push(it.tag+'|'+it.es+'|'+(it.heard||'')+(f.length?' #'+f.join(','):''));
+  });
+  lines.push('EN:'+S.items.filter(function(it){return it.phase==='A'}).map(function(it){return it.tag+'='+it.en}).join(' / '));
+  $('out').value=lines.join('\n');
+  if(used.indexOf(S.set)<0){used.push(S.set);LS.set('conv:used',used);}
+  $('stage').classList.add('hide'); $('done').classList.remove('hide');
+}
+$('copy').onclick=function(){
+  var t=$('out').value;
+  function fb(){ $('out').focus(); $('out').select(); try{document.execCommand('copy'); $('copy').textContent='Copiado (selección)';}catch(e){ $('copy').textContent='Selecciona y copia a mano'; } }
+  if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){$('copy').textContent='Copiado'},fb); } else fb();
+};
+$('bNew').onclick=function(){ fillSets(); $('done').classList.add('hide'); $('setup').classList.remove('hide'); $('copy').textContent='Copiar transcript'; };
+$('bResetUsed').onclick=function(){ used=[]; LS.set('conv:used',used); fillSets(); };
+</script>
+</body></html>
