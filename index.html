@@ -40,7 +40,8 @@
   <label>Voz <select id="voiceSel"><option value="">(auto)</option></select></label></div>
  <div class="row"><label>Velocidad <select id="rate"><option value="0.75">lenta</option><option value="0.9" selected>normal</option><option value="1">rápida</option></select></label>
   <label>Pausa antes del micro <select id="gap"><option value="300">0.3 s</option><option value="600" selected>0.6 s</option><option value="1000">1 s</option></select></label>
-  <label><input type="checkbox" id="ack" checked> «Bien» entre frases</label></div>
+  <label><input type="checkbox" id="ack" checked> «Bien» entre frases</label>
+  <label>Inglés <select id="enlang"><option value="en-US">en-US</option><option value="en-GB">en-GB</option></select></label></div>
  <button class="primary" id="start">Empezar</button>
  <p class="note">Ceiling 42. Mantén la pantalla encendida. La primera vez, Safari pedirá permiso para el micrófono.</p>
 </div>
@@ -97,6 +98,7 @@ function fillVoices(){
 fillVoices(); if(window.speechSynthesis)speechSynthesis.onvoiceschanged=fillVoices;
 ['rate','gap'].forEach(function(k){var v=LS.get('conv:'+k,null);if(v!==null)$(k).value=v;});
 $('ack').checked=LS.get('conv:ack',true);
+$('enlang').value=LS.get('conv:enlang','en-US');
 
 /* ---- session state ---- */
 var S=null, attempt=0, rec=null, needsTap=false, timer=null;
@@ -114,7 +116,7 @@ function bump(){ attempt++; if(timer){clearTimeout(timer);timer=null;} if(rec){t
 
 $('start').onclick=function(){
   var si=parseInt($('setSel').value,10);
-  LS.set('conv:voice',$('voiceSel').value); LS.set('conv:rate',$('rate').value); LS.set('conv:gap',$('gap').value); LS.set('conv:ack',$('ack').checked);
+  LS.set('conv:voice',$('voiceSel').value); LS.set('conv:rate',$('rate').value); LS.set('conv:gap',$('gap').value); LS.set('conv:ack',$('ack').checked); LS.set('conv:enlang',$('enlang').value);
   S={set:si,items:buildItems(SETS[si]),i:-1,t0:Date.now(),lastPhase:null};
   $('setup').classList.add('hide'); $('done').classList.add('hide'); $('stage').classList.remove('hide');
   bump(); var a=attempt;
@@ -138,10 +140,10 @@ function speak(text,a,cb,rateMul){
 
 /* ---- recognition ---- */
 function listen(a){
-  var it=cur(); setStage('listening','Escuchando…'); $('heard').textContent=''; $('bAnswer').classList.add('hide');
+  var it=cur(); setStage('listening',it.phase==='B'?'Escuchando… (español)':'Listening… (English)'); $('heard').textContent=''; $('bAnswer').classList.add('hide');
   if(!SR){ it.err='no-SR'; setStage('','Este navegador no reconoce voz'); return; }
   var r; try{ r=new SR(); }catch(e){ it.err='ctor'; setStage('','Sin reconocimiento'); return; }
-  r.lang='es-ES'; r.interimResults=true; r.continuous=false; r.maxAlternatives=1;
+  r.lang=recLang(it); r.interimResults=true; r.continuous=false; r.maxAlternatives=1;
   var text='', errored=null;
   r.onresult=function(ev){ if(a!==attempt)return;
     var s=''; for(var k=ev.resultIndex;k<ev.results.length;k++)s+=ev.results[k][0].transcript;
@@ -164,6 +166,7 @@ function listen(a){
     if(!it.tapTried){ needsTap=true; askTap(it); }
     else { it.err='start'; setStage('','No pude abrir el micro'); } }
 }
+function recLang(it){ return it.phase==='B'?'es-ES':(LS.get('conv:enlang','en-US')); }
 function askTap(it){ it.tap=true; setStage('','Toca para contestar'); $('bAnswer').classList.remove('hide'); }
 function captured(a){
   setStage('','Anotado');
@@ -198,7 +201,7 @@ function finish(){
   bump();
   var d=new Date(), ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
   var v=voice();
-  var lines=['CONV1;set='+(S.set+1)+';ceil='+CEIL+';date='+ds+';voice='+(v?v.name:'?')+';gap='+$('gap').value+';rate='+$('rate').value+';min='+((Date.now()-S.t0)/60000).toFixed(1)];
+  var lines=['CONV1;set='+(S.set+1)+';ceil='+CEIL+';date='+ds+';voice='+(v?v.name:'?')+';gap='+$('gap').value+';rate='+$('rate').value+';en='+$('enlang').value+';min='+((Date.now()-S.t0)/60000).toFixed(1)];
   S.items.forEach(function(it,k){
     if(k>S.i)return;
     var f=[];
@@ -207,6 +210,7 @@ function finish(){
     if(it.shown)f.push('shown');
     if(it.tap)f.push('tap');
     if(it.err)f.push('err='+it.err);
+    if(it.heard)f.unshift('lang='+recLang(it));
     lines.push(it.tag+'|'+it.es+'|'+(it.heard||'')+(f.length?' #'+f.join(','):''));
   });
   lines.push('EN:'+S.items.filter(function(it){return it.phase==='A'}).map(function(it){return it.tag+'='+it.en}).join(' / '));
