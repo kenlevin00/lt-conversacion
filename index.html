@@ -509,13 +509,13 @@
 <header>
   <p class="eyebrow">Language Transfer · Complete Spanish</p>
   <h1>Conversación</h1>
-  <div class="meta"><span class="pill">Sets to track <strong id="pill-reached">42</strong></span><button class="themebtn" id="themebtn" type="button">Light mode</button></div>
+  <div class="meta"><span class="pill">Grammar <strong>15–42</strong></span><span class="pill">Vocabulary to track <strong id="pill-reached">42</strong></span><button class="themebtn" id="themebtn" type="button">Light mode</button></div>
 </header>
 <section id="panel-conv">
 
   <div class="setgroup" id="cv-setup">
     <h3>Conversación</h3>
-    <p class="sethelp">Tres fases por set. Calentamiento y serie A: escuchas una frase en español y dices el inglés. Serie B: oyes una pregunta y contestas en español. Al final, copia el transcript y pégalo en el chat.</p>
+    <p class="sethelp">Tres fases por set. Calentamiento y serie A: escuchas una frase en español y dices el inglés. Serie B: oyes una pregunta y contestas en español. Los sets son una escalera: cada uno sube la gramática dos pistas y recicla todo lo anterior. Al final, copia el transcript y guárdalo en la pestaña Conversación de las notas.</p>
     <div class="setrow"><label for="cv-set">Set</label><select id="cv-set"></select></div>
     <div class="setrow"><label for="cv-voice">Voz</label><select id="cv-voice"><option value="">(auto)</option></select></div>
     <div class="setrow"><label for="cv-rate">Velocidad</label><select id="cv-rate"><option value="0.75">lenta</option><option value="0.9" selected>normal</option><option value="1">rápida</option></select></div>
@@ -547,9 +547,18 @@
     </div>
   </div>
 
+  <div class="setgroup" id="cv-tx" hidden>
+    <h3>Transcripts</h3>
+    <p class="sethelp">Al terminar una sesión en la página de Conversación, copia el transcript y pégalo aquí. Se guarda en esta página y Claude lo lee en la próxima revisión — no hace falta pegarlo en el chat.</p>
+    <textarea class="synccode" id="cv-paste" rows="4" placeholder="Pega aquí el transcript (empieza por CONV1;…)"></textarea>
+    <div class="actions"><button class="btn" type="button" id="cv-txsave">Guardar transcript</button><span class="saved" id="cv-txsaved">Guardado</span></div>
+    <p class="sethelp" id="cv-txnote" style="margin:10px 0 0"></p>
+    <div id="cv-txlist"></div>
+  </div>
+
   <div class="synccard" id="cv-done" hidden>
     <span class="synclbl">Sesión terminada</span>
-    <p class="syncwhy">Copia el transcript y pégalo en el chat para el análisis.</p>
+    <p class="syncwhy">Copia el transcript y guárdalo en la pestaña Conversación de las notas; Claude lo revisa en la próxima sesión.</p>
     <textarea class="synccode" id="cv-out" readonly rows="8"></textarea>
     <div class="actions">
       <button class="btn" type="button" id="cv-copy">Copiar transcript</button>
@@ -571,25 +580,28 @@
   label();
 })();
 /* ===================== CONVERSACIÓN =====================
-   v61: folded in from the former index.html (conv1). One set is three phases:
-   a warm-up and series A play a Spanish line and listen for the English; series B
-   asks a question in Spanish and listens for a Spanish answer. It ends with a
-   transcript to paste to Claude. The sets are content gated to CONV_CEIL — when
-   MAXTRACK moves, regenerate them and move CONV_CEIL with it (check.py flags the gap).
-   Settings and the used-set list go through window.storage like everything else. */
+   v61: folded in from the former index.html. One set is three phases: a warm-up and
+   series A play a Spanish line and listen for the English; series B asks a question in
+   Spanish and listens for a Spanish answer. It ends with a transcript to paste to Claude.
+   v61.5 (conv2): the sets are a LADDER. Each carries its own grammar ceiling g — structures,
+   tenses and function words stay inside tracks 1..g — while vocabulary in every set may come
+   from anywhere up to CONV_CEIL (= MAXTRACK), the drill's two-ceiling rule. Set 1 stops at
+   track 15 and the last set reaches the ceiling; extend by appending sets (parts/conv-sets.py
+   in the build, tools/check-conv.js gates every line). The used-set list is keyed by VERSION
+   so a rebuilt ladder starts fresh. Settings go through window.storage like everything else. */
 (function(){
-  var CONV_CEIL=42, VERSION='conv1';
+  var CONV_CEIL=42, VERSION='conv2', USED_KEY='conv:used:'+VERSION;
   /* stable address of the standalone copy (tools/build-conversacion.py output, hosted on a
      static host). Inside the viewer's frame the microphone is refused, so the tab points there. */
   var CONV_URL='https://kenlevin00.github.io/lt-conversacion/';
-  var SETS=[{"w":["Es muy caro.","Quiero verte.","No puedo venir."],"a":[["Me gustaría comer contigo mañana.","I would like to eat with you tomorrow."],["Es listo, pero no está listo.","He is smart, but he is not ready."],["Se quedan en casa porque no tienen dinero.","They stay at home because they have no money."],["Le daré algo mañana.","I will give him something tomorrow."],["Comería más, pero estoy tan cansado.","I would eat more, but I am so tired."]],"b":["¿Qué te gusta comer?","¿En qué piensas ahora?","¿Dónde estarás mañana?","¿Eres una persona ocupada?","¿Podrías venir conmigo esta noche?"]},{"w":["Estoy en casa.","Quiero salir.","Es muy tarde."],"a":[["Nos gustaría comer con ustedes.","We would like to eat with you (pl)."],["Somos listos, pero no estamos listos.","We are smart, but we are not ready."],["Están vendiendo la casa.","They are selling the house."],["Quiero decirle algo importante.","I want to tell him something important."],["Te llamaré esta noche.","I will call you tonight."]],"b":["¿De dónde eres?","¿Qué comerás mañana?","¿Piensas mucho en el dinero?","¿Te gustaría vivir en España?","¿Estás aburrido ahora?"]},{"w":["Tengo tiempo.","Voy a comer.","Está bien."],"a":[["Sueño con vivir en el pueblo.","I dream of living in the town."],["Es aburrido, pero no está aburrido.","He is boring, but he is not bored."],["Hemos comprado la carne.","We have bought the meat."],["Me doy cuenta ahora.","I realize now."],["Iría contigo, pero no puedo.","I would go with you, but I can't."]],"b":["¿Con qué sueñas?","¿Cómo estás ahora?","¿Qué comprarías con mucho dinero?","¿Le das el dinero?","¿Quieres quedarte en casa esta noche?"]},{"w":["Lo sé.","No lo tengo.","Vamos a ver."],"a":[["Depende de si quiere venir.","It depends on whether he wants to come."],["¿Cómo es él? Es muy sincero.","What is he like? He is very sincere."],["Estoy preparando el desayuno.","I am preparing breakfast."],["Les hablaré mañana.","I will speak to them tomorrow."],["Me gustan las casas grandes.","I like big houses."]],"b":["¿Qué estás comiendo ahora?","¿Cuándo comerás?","¿Eres feliz?","¿Te gustaría hablar conmigo mañana?","¿Por qué no te quedas?"]},{"w":["Salgo mañana.","Estoy cansado.","Es para ti."],"a":[["Está comiendo con ella ahora.","He is eating with her now."],["Seré muy feliz en España.","I will be very happy in Spain."],["Nos quedamos aquí esta semana.","We are staying here this week."],["Les doy la casa.","I give them the house."],["Bailaría, pero no sé bailar.","I would dance, but I don't know how to dance."]],"b":["¿Qué te gustaría hacer mañana?","¿Te enamoras de las personas sinceras?","¿Dónde quieres vivir?","¿Estarás cansado mañana?","¿Estás preocupado ahora?"]},{"w":["Nos quedamos.","Me gusta mucho.","Puedo ir."],"a":[["¿Me lo darás mañana?","Will you give it to me tomorrow?"],["El coche es rojo y está aquí.","The car is red and it is here."],["Estamos esperando ahora.","We are waiting now."],["Nos hablamos mañana.","We'll talk to each other tomorrow."],["Se enamora de ella.","He falls in love with her."]],"b":["¿Qué quieres comprar?","¿Sueñas con vivir en España?","¿Cómo es ella?","¿Comerías carne esta noche?","¿Estás en casa ahora?"]},{"w":["No puedo ir.","Tengo que salir.","Está aquí."],"a":[["Estoy siendo sincero contigo.","I am being sincere with you."],["Es una persona feliz, pero no está feliz.","She is a happy person, but she is not happy."],["Han vendido el coche.","They have sold the car."],["Pienso mucho en ti.","I think about you a lot."],["Nos gustaría venir, pero no podemos.","We would like to come, but we can't."]],"b":["¿Qué estás comprando?","¿Piensas en la situación?","¿Serás feliz en España?","¿Te gustan las casas grandes?","¿Depende de ti?"]},{"w":["Vengo ahora.","Lo veo.","No es caro."],"a":[["Estoy tan preocupado ahora.","I am so worried now."],["La escuela es aburrida.","School is boring."],["He perdido el dinero.","I have lost the money."],["Les daré la carne.","I will give them the meat."],["Me gustaría quedarme aquí.","I would like to stay here."]],"b":["¿Qué quieres decirle?","¿Dónde comerías esta noche?","¿Es aburrida la escuela?","¿Te quedarás en casa mañana?","¿Sueñas con ella?"]},{"w":["Es mi casa.","Estamos aquí.","Lo quiero."],"a":[["Mi perro está muy cansado.","My dog is very tired."],["Es muy sincero, pero no está aquí.","He is very sincere, but he is not here."],["Están comprando una casa nueva.","They are buying a new house."],["Nos gustaría ir con ustedes.","We would like to go with you (pl)."],["¿Por qué no quieres hablar conmigo?","Why don't you want to talk with me?"]],"b":["¿Qué comes normalmente?","¿Irías a España conmigo?","¿Eres de España?","¿Cuándo hablarás con él?","¿Depende de la situación?"]},{"w":["Puedo verte.","Es para mí.","Estoy listo."],"a":[["Está hablando con ellos ahora.","He is talking with them now."],["Estoy listo, vamos.","I am ready, let's go."],["Me gustan las personas sinceras.","I like sincere people."],["Iré a verte mañana.","I will go to see you tomorrow."],["Se quedarían, pero no tienen tiempo.","They would stay, but they don't have time."]],"b":["¿Qué te gustaría comer esta noche?","¿Cómo están ustedes?","¿Piensas en mí?","¿Comprarías una casa en el pueblo?","¿Estás siendo sincero?"]}];
+  var SETS=[{"g":15,"w":["No puedo venir mañana.","¿Qué pasa?","Tengo que hablar con ella."],"a":[["Quiero comprar la casa, pero no tengo dinero.","I want to buy the house, but I don't have money."],["¿Por qué no me lo explicas ahora?","Why don't you explain it to me now?"],["Pienso comer más tarde con él.","I plan to eat later with him."],["Ella no entiende por qué tienes que salir.","She doesn't understand why you have to leave."],["Quiere venir mañana, pero no puede salir.","He wants to come tomorrow, but he can't get out."]],"b":["¿Qué quieres hacer mañana?","¿Puedes venir a la casa ahora?","¿Por qué no hablas con ella?","¿Cuándo tienes que salir?","¿Piensas comprar la casa?"]},{"g":17,"w":["Duermo mucho.","¿Empezamos ahora?","No encuentro el coche."],"a":[["No encuentro el dinero. ¿Lo tienes?","I can't find the money. Do you have it?"],["Empezamos mañana con el doctor.","We start tomorrow with the doctor."],["Pienso que sí, pero no puedo mostrarte la casa ahora.","I think so, but I can't show you the house now."],["Tomamos una bebida más tarde.","We're having a drink later."],["Ella duerme mucho, pero no come bien.","She sleeps a lot, but she doesn't eat well."]],"b":["¿Qué tomamos más tarde?","¿Cuándo empieza el concierto?","¿Piensas que puedo hacerlo?","¿Hablamos mañana con el profesor?","¿Qué quieres beber ahora?"]},{"g":19,"w":["¿A dónde vas?","Vivimos aquí.","Vamos a comer."],"a":[["Siempre como carne, pero prefiero comer arroz esta noche.","I always eat meat, but I prefer to eat rice tonight."],["¿A dónde van? Tengo que saberlo.","Where are they going? I have to know."],["No entendemos por qué no vienen a comer.","We don't understand why they don't come to eat."],["Vamos a la escuela mañana y comemos aquí más tarde.","We go to school tomorrow and we eat here later."],["Vivimos aquí, pero preferimos el pueblo.","We live here, but we prefer the town."]],"b":["¿Dónde vives?","¿A dónde vas esta noche?","¿Siempre comes carne?","¿Vamos a comer más tarde?","¿Por qué no vienen a la casa esta noche?"]},{"g":21,"w":["Nos vemos pronto.","He comprado carne.","¿Ves la luz?"],"a":[["No he hablado con ella, pero la veo mañana.","I haven't spoken with her, but I see her tomorrow."],["Hemos tomado mucho y ahora no puedo dormir.","We have drunk a lot and now I can't sleep."],["Voy a ver la casa la semana que viene.","I'm going to see the house next week."],["¿Has esperado por mucho tiempo? Vengo ahora.","Have you waited for a long time? I'm coming now."],["Lo hemos anticipado, pero no lo hemos preparado bien.","We have anticipated it, but we haven't prepared it well."]],"b":["¿Has comprado la carne?","¿Qué vas a hacer la semana que viene?","¿Cuándo nos vemos?","¿Cuándo has hablado con ella?","¿Qué has tomado esta noche?"]},{"g":23,"w":["Me he perdido.","¿Has terminado?","Ellos han venido."],"a":[["Nosotros hemos vendido la casa, pero ellos no lo saben.","We have sold the house, but they don't know it."],["No he entendido el problema, pero él sí.","I haven't understood the problem, but he has."],["¿Usted ha venido a ver el sistema?","Have you (formal) come to see the system?"],["Nos hemos perdido y no encontramos el río.","We have got lost and we can't find the river."],["Ellas han terminado la conversación y quieren salir.","They (f) have finished the conversation and want to leave."]],"b":["¿Has vendido el coche?","¿Tú has entendido el problema?","¿Ellos han venido a la casa?","¿Ha terminado usted el programa?","¿Hemos perdido mucho tiempo?"]},{"g":25,"w":["Te lo doy mañana.","Me quedo aquí.","Hasta mañana."],"a":[["¿Me das el dinero ahora? Tengo que comprar la carne a las seis.","Will you give me the money now? I have to buy the meat at six."],["Nos quedamos aquí hasta las ocho.","We're staying here until eight."],["Ella nos cocina arroz esta noche.","She's cooking us rice tonight."],["Ustedes me hablan mucho, pero no me dan tiempo.","You (pl) talk to me a lot, but you don't give me time."],["¿Te quedas esta noche? Tenemos arroz y aceitunas.","Are you staying tonight? We have rice and olives."]],"b":["¿Me lo das mañana?","¿Hasta cuándo te quedas?","¿Comemos a las ocho?","¿Qué me cocinas esta noche?","¿Ustedes vienen a las seis?"]},{"g":27,"w":["Me llamo Ana.","Vivo en la casa roja.","Debemos ir."],"a":[["Vivo en una casa grande en el pueblo.","I live in a big house in the town."],["Debemos quedarnos en la escuela hasta las siete.","We must stay at school until seven."],["No podemos comprar el coche rojo, pero podemos comprar la cámara digital.","We can't buy the red car, but we can buy the digital camera."],["Me voy a quedar en casa esta noche y voy a cocinar arroz.","I'm going to stay home tonight and I'm going to cook rice."],["Ella tiene un coche nuevo y una casa grande.","She has a new car and a big house."]],"b":["¿Cómo te llamas?","¿Vives en una casa grande?","¿Quieres comprar el coche rojo?","¿Debemos quedarnos aquí hasta las siete?","¿En qué pueblo vives?"]},{"g":29,"w":["Estoy muy cansado.","El coche es muy caro.","¿Dónde están?"],"a":[["Los profesores están cansados, pero el programa es muy intensivo.","The teachers are tired, but the programme is very intensive."],["Estamos en la casa, pero ellos están en el pueblo.","We are in the house, but they are in the town."],["Es un doctor muy creativo, pero no tiene dinero.","He is a very creative doctor, but he has no money."],["Estoy muerto. He esperado aquí hasta las diez.","I'm dead (exhausted). I have waited here until ten."],["Las casas son muy caras aquí y no tenemos el dinero.","The houses are very expensive here and we don't have the money."]],"b":["¿Cómo estás?","¿Dónde estás ahora?","¿El coche es muy caro?","¿Los profesores están cansados?","¿Es muy caro vivir aquí?"]},{"g":31,"w":["Soy estudiante.","¿Cómo es él?","Debe estar aquí."],"a":[["No voy porque estoy muy cansado.","I'm not going because I'm very tired."],["Él es español y es muy estricto.","He is Spanish and he is very strict."],["Deben estar en la escuela porque no están en la casa.","They must be at school because they aren't in the house."],["¿Cómo es el profesor? Es muy sincero, pero está cansado.","What is the teacher like? He is very sincere, but he is tired."],["Voy a estar en España la semana que viene.","I'm going to be in Spain next week."]],"b":["¿Cómo eres?","¿Eres español?","¿Por qué no vienes esta noche?","¿Dónde vas a estar mañana?","¿Cómo es ella?"]},{"g":33,"w":["Soy de aquí.","Estoy listo.","Es tan aburrido."],"a":[["Soy de España, pero vivo aquí porque estoy casado.","I'm from Spain, but I live here because I'm married."],["El profesor es muy listo, pero no está listo.","The teacher is very clever, but he isn't ready."],["Estamos tan ocupados ahora, pero somos muy felices.","We are so busy now, but we are very happy."],["Ella es una persona muy feliz, pero ahora está preocupada.","She is a very happy person, but now she is worried."],["Quiero saber cómo está el estudiante de España.","I want to know how the student from Spain is."]],"b":["¿De dónde eres?","¿Estás libre esta noche?","¿Es aburrida la escuela?","¿Eres una persona feliz?","¿Por qué estás tan ocupado?"]},{"g":35,"w":["Estoy comiendo.","Está desayunando ahora.","Salgo pronto."],"a":[["Estoy siendo honesto, no quiero ir esta noche.","I'm being honest, I don't want to go tonight."],["Están vendiendo la casa porque no tienen dinero.","They are selling the house because they have no money."],["¿Qué estás haciendo? Estoy preparando el desayuno.","What are you doing? I'm preparing breakfast."],["Lo estamos esperando aquí, pero está en la escuela.","We are waiting for him here, but he is at school."],["Salgo pronto, pero ahora estoy hablando con el doctor.","I'm leaving soon, but right now I'm talking with the doctor."]],"b":["¿Qué estás comiendo?","¿Estás siendo sincero?","¿Están desayunando ahora?","¿Qué estás preparando?","¿Lo estás esperando aquí?"]},{"g":37,"w":["Te llamaré mañana.","Me doy cuenta.","Le daré algo."],"a":[["Comeré con ellos mañana, pero esta noche estaré en la casa.","I'll eat with them tomorrow, but tonight I'll be in the house."],["Les hablaré la semana que viene porque ahora estoy muy ocupado.","I'll speak to them next week because right now I'm very busy."],["¿Te das cuenta? Ella no va a venir esta noche.","Do you realise? She isn't going to come tonight."],["Le daremos la tarta a las siete.","We'll give him the cake at seven."],["Iremos a España en el verano y estaremos muy bien.","We'll go to Spain in the summer and we'll be very well."]],"b":["¿Dónde comerás mañana?","¿Cuándo le hablarás?","¿Estarás en la casa esta noche?","¿Irás a España en el verano?","¿Qué les darás?"]},{"g":39,"w":["Es para ti.","Se queda en casa.","Quiero decirle algo."],"a":[["¿Te quedas? Tengo algo para ti.","Are you staying? I have something for you."],["Se hablan mucho, pero no se entienden.","They talk to each other a lot, but they don't understand each other."],["Quiero decirle algo importante, pero él está con ustedes.","I want to tell him something important, but he is with you (pl)."],["La casa es de ellos, pero nosotros nos quedamos aquí hasta el verano.","The house is theirs, but we are staying here until the summer."],["¿Me haces un favor? Quiero quedarme aquí esta noche.","Will you do me a favour? I want to stay here tonight."]],"b":["¿Por qué no te quedas?","¿Es para mí?","¿Qué le quieres decir?","¿Ustedes se hablan mucho?","¿La casa es de ustedes?"]},{"g":42,"w":["Me gusta bailar.","¿Vienes conmigo?","Sueño contigo."],"a":[["Me gustaría ir a España contigo, pero depende de ella.","I would like to go to Spain with you, but it depends on her."],["Pienso mucho en ti y sueño con vivir en el pueblo.","I think about you a lot and I dream of living in the town."],["Bailaría contigo esta noche, pero estoy muy cansado.","I would dance with you tonight, but I'm very tired."],["Nos gustan las casas grandes, pero no podríamos comprar la casa roja.","We like big houses, but we couldn't buy the red house."],["Se está enamorando de ella, pero ella no piensa en él.","He is falling in love with her, but she doesn't think about him."]],"b":["¿Qué te gustaría hacer esta noche?","¿Piensas mucho en el dinero?","¿Irías a España conmigo?","¿Con qué sueñas?","¿Podrías venir conmigo mañana?"]}];
   var $=function(id){return document.getElementById(id);};
   var setSel=$('cv-set'); if(!setSel)return;
   var voiceSel=$('cv-voice'), rateSel=$('cv-rate'), gapSel=$('cv-gap'), ackBox=$('cv-ack'), enSel=$('cv-enlang');
   var setup=$('cv-setup'), stage=$('cv-stage'), doneBox=$('cv-done');
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  $('cv-note').textContent='Sets construidos hasta la pista '+CONV_CEIL+'. Mantén la pantalla encendida; la primera vez el navegador pedirá permiso para el micrófono.';
-  window.__convCeil=CONV_CEIL;
+  $('cv-note').textContent='Sets progresivos: la gramática sube de la pista '+SETS[0].g+' a la '+SETS[SETS.length-1].g+' en '+SETS.length+' sets; el vocabulario llega hasta la pista '+CONV_CEIL+' en todos. Mantén la pantalla encendida; la primera vez el navegador pedirá permiso para el micrófono.';
+  window.__convCeil=CONV_CEIL; window.__convSets=SETS;
 
   /* store first; browser storage second, for the top-level copy of the page where the
      runtime resolves null (that copy is where the microphone works — see below) */
@@ -644,6 +656,56 @@
   paintDiag('');
   /* framed with a hosted copy: the launcher is the point of the tab, so it goes first */
   if(framed&&CONV_URL){ escape.className='setgroup'; escape.style.marginBottom='14px'; setup.parentNode.insertBefore(escape,setup); }
+
+  /* ---- saved transcripts ----
+     The hosted copy has no store, so a session's transcript is copied there and pasted here.
+     Kept in conv:transcripts as a JSON array, newest first: {t, set, ceil, text, r}. A reviewing
+     session reads them, marks r:true on the ones it has covered, and the list says so. */
+  var TXKEY='conv:transcripts', TXMAX=40, TXBYTES=200000;
+  var txBox=$('cv-tx'), txPaste=$('cv-paste'), txList=$('cv-txlist'), txNote=$('cv-txnote');
+  if(!window.storage){ txBox.hidden=true; }
+  else{
+    txBox.hidden=false;
+    if(framed&&CONV_URL)escape.parentNode.insertBefore(txBox,escape.nextSibling);
+    var transcripts=[];
+    function txHeader(text){
+      var h=String(text).split('\n')[0], m={};
+      h.replace(/(\w+)=([^;]*)/g,function(_,k,v){ m[k]=v; return ''; });
+      return m;
+    }
+    function txSave(){
+      return window.storage.set(TXKEY,JSON.stringify(transcripts)).catch(function(e){
+        txNote.textContent='No se pudo guardar: '+((e&&e.message)||e);
+      });
+    }
+    function txPaint(){
+      if(!transcripts.length){ txList.innerHTML=''; txNote.textContent='Ningún transcript guardado todavía.'; return; }
+      var pending=transcripts.filter(function(x){ return !x.r; }).length;
+      txNote.textContent=transcripts.length+' guardado'+(transcripts.length===1?'':'s')+' · '+pending+' sin revisar';
+      txList.innerHTML='<div class="vtable">'+transcripts.slice(0,8).map(function(x,i){
+        var h=txHeader(x.text), d=new Date(x.t);
+        var when=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+        return '<div class="vrow"><span class="es">'+when+' · set '+(h.set||'?')+(h.ceil?' · hasta '+h.ceil:'')+(h.min?' · '+h.min+' min':'')+'</span>'+
+               '<span class="en">'+(x.r?'revisado':'sin revisar')+' <button class="rchip skip" type="button" data-i="'+i+'" style="padding:4px 9px;margin-left:8px">Borrar</button></span></div>';
+      }).join('')+'</div>';
+      txList.querySelectorAll('button[data-i]').forEach(function(b){
+        b.addEventListener('click',function(){ transcripts.splice(parseInt(b.getAttribute('data-i'),10),1); txSave().then(txPaint); });
+      });
+    }
+    sget(TXKEY,[]).then(function(v){ transcripts=Array.isArray(v)?v:[]; txPaint(); });
+    $('cv-txsave').addEventListener('click',function(){
+      var t=txPaste.value.trim();
+      if(!/^CONV1;/.test(t)){ txNote.textContent='Eso no parece un transcript — tiene que empezar por CONV1;'; return; }
+      if(transcripts.some(function(x){ return x.text===t; })){ txNote.textContent='Ese transcript ya está guardado.'; txPaste.value=''; return; }
+      var h=txHeader(t);
+      transcripts.unshift({t:Date.now(),set:parseInt(h.set,10)||0,ceil:parseInt(h.ceil,10)||0,text:t,r:false});
+      while(transcripts.length>TXMAX||JSON.stringify(transcripts).length>TXBYTES)transcripts.pop();
+      txSave().then(function(){
+        txPaste.value=''; txPaint();
+        var c=$('cv-txsaved'); c.classList.add('on'); setTimeout(function(){ c.classList.remove('on'); },1200);
+      });
+    });
+  }
   $('cv-mictest').addEventListener('click',function(){ micCheck().then(paintDiag); });
   $('cv-link').addEventListener('click',function(e){
     /* the frame may forbid new tabs; then the address is in the box for copying */
@@ -656,13 +718,13 @@
     setSel.innerHTML=''; var first=-1;
     SETS.forEach(function(s,i){
       var o=document.createElement('option'); o.value=i;
-      o.textContent='Set '+(i+1)+(used.indexOf(i)>=0?' (usado)':''); setSel.appendChild(o);
+      o.textContent='Set '+(i+1)+' · gramática hasta '+s.g+(used.indexOf(i)>=0?' (usado)':''); setSel.appendChild(o);
       if(first<0&&used.indexOf(i)<0)first=i;
     });
     setSel.value=first<0?0:first;
   }
   fillSets();
-  sget('conv:used',[]).then(function(v){ used=Array.isArray(v)?v:[]; fillSets(); });
+  sget(USED_KEY,[]).then(function(v){ used=Array.isArray(v)?v:[]; fillSets(); });
   var wantVoice='';
   function fillVoices(){
     if(!window.speechSynthesis)return;
@@ -794,7 +856,8 @@
     bump();
     var d=new Date(), ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     var v=voice();
-    var lines=['CONV1;set='+(S.set+1)+';ceil='+CONV_CEIL+';date='+ds+';voice='+(v?v.name:'?')+';gap='+gapSel.value+';rate='+rateSel.value+';en='+enSel.value+';min='+((Date.now()-S.t0)/60000).toFixed(1)];
+    /* ceil = this set's grammar ceiling (what series B is judged against); vocab = the word ceiling */
+    var lines=['CONV1;set='+(S.set+1)+';ceil='+SETS[S.set].g+';vocab='+CONV_CEIL+';date='+ds+';voice='+(v?v.name:'?')+';gap='+gapSel.value+';rate='+rateSel.value+';en='+enSel.value+';min='+((Date.now()-S.t0)/60000).toFixed(1)];
     S.items.forEach(function(it,k){
       if(k>S.i)return;
       var f=[];
@@ -808,7 +871,7 @@
     });
     lines.push('EN:'+S.items.filter(function(it){return it.phase==='A';}).map(function(it){return it.tag+'='+it.en;}).join(' / '));
     $('cv-out').value=lines.join('\n');
-    if(used.indexOf(S.set)<0){ used.push(S.set); sset('conv:used',used); }
+    if(used.indexOf(S.set)<0){ used.push(S.set); sset(USED_KEY,used); }
     stage.hidden=true; doneBox.hidden=false;
   }
   $('cv-copy').addEventListener('click',function(){
@@ -817,7 +880,7 @@
     if(navigator.clipboard&&navigator.clipboard.writeText){ navigator.clipboard.writeText(t).then(function(){b.textContent='Copiado';},fb); } else fb();
   });
   $('cv-new').addEventListener('click',function(){ fillSets(); doneBox.hidden=true; setup.hidden=false; $('cv-copy').textContent='Copiar transcript'; });
-  $('cv-resetused').addEventListener('click',function(){ used=[]; sset('conv:used',used); fillSets(); });
+  $('cv-resetused').addEventListener('click',function(){ used=[]; sset(USED_KEY,used); fillSets(); });
 })();
 </script>
 </body>
