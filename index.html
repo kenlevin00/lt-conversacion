@@ -512,12 +512,16 @@
 <header>
   <p class="eyebrow">Language Transfer · Complete Spanish</p>
   <h1>Conversación</h1>
-  <div class="meta"><span class="pill">Grammar <strong>15–52</strong></span><span class="pill">Vocabulary to track <strong id="pill-reached">52</strong></span><button class="themebtn" id="themebtn" type="button">Light mode</button></div>
+  <div class="meta"><span class="pill">Grammar <strong>15–58</strong></span><span class="pill">Vocabulary to track <strong id="pill-reached">58</strong></span><button class="themebtn" id="themebtn" type="button">Light mode</button></div>
 </header>
 <section id="panel-conv">
 
   <div class="setgroup" id="cv-setup">
     <h3>Conversación</h3>
+    <div id="cv-resumebox" hidden>
+      <p class="sethelp" id="cv-resumetxt" style="margin:0 0 8px"></p>
+      <div class="actions" style="margin-bottom:14px"><button class="btn" type="button" id="cv-resume">Seguir la sesión</button><button class="btn ghost" type="button" id="cv-resumedrop">Descartar</button></div>
+    </div>
     <p class="sethelp">Tres fases por set. Calentamiento y serie A: escuchas una frase en español y dices el inglés. Serie B: oyes una pregunta y contestas en español. Los sets son una escalera: cada uno sube la gramática dos pistas y recicla todo lo anterior. Al final, copia el transcript y guárdalo en la pestaña Conversación de las notas.</p>
     <div class="setrow"><label for="cv-set">Set</label><select id="cv-set"></select></div>
     <div class="setrow"><label for="cv-voice">Voz</label><select id="cv-voice"><option value="">(auto)</option></select></div>
@@ -525,6 +529,7 @@
     <div class="setrow"><label for="cv-gap">Pausa</label><select id="cv-gap"><option value="300">0.3 s antes del micro</option><option value="600" selected>0.6 s antes del micro</option><option value="1000">1 s antes del micro</option></select></div>
     <div class="setrow"><label for="cv-enlang">Inglés</label><select id="cv-enlang"><option value="en-US">en-US</option><option value="en-GB">en-GB</option></select></div>
     <div class="setrow"><label for="cv-submit">Enviar</label><select id="cv-submit"><option value="button" selected>con el botón Listo</option><option value="auto">al callarme</option></select></div>
+    <div class="setrow"><label for="cv-wake">Pantalla</label><select id="cv-wake"><option value="on" selected>mantener encendida</option><option value="off">puede apagarse</option></select></div>
     <div class="setrow"><label for="cv-ack">«Bien»</label><label class="cv-check" for="cv-ack"><input type="checkbox" id="cv-ack" checked> entre frases</label></div>
     <div class="actions"><button class="btn" type="button" id="cv-start">Empezar</button><button class="btn ghost" type="button" id="cv-mictest">Probar micro</button></div>
     <p class="sethelp" id="cv-note" style="margin:12px 0 0"></p>
@@ -543,6 +548,8 @@
     <p class="cv-shown" id="cv-shown"></p>
     <div class="actions" id="cv-ctrl">
       <button class="btn" type="button" id="cv-listo" hidden>Listo</button>
+      <button class="btn ghost" type="button" id="cv-mic">Reactivar micro</button>
+      <button class="btn" type="button" id="cv-reload" hidden>Recargar y seguir</button>
       <button class="btn ghost" type="button" id="cv-repeat">Repetir</button>
       <button class="btn ghost" type="button" id="cv-show">Mostrar</button>
       <button class="btn ghost" type="button" id="cv-again">Otra vez</button>
@@ -595,17 +602,17 @@
    in the build, tools/check-conv.js gates every line). The used-set list is keyed by VERSION
    so a rebuilt ladder starts fresh. Settings go through window.storage like everything else. */
 (function(){
-  var CONV_CEIL=52, VERSION='conv2', USED_KEY='conv:used:'+VERSION;
+  var CONV_CEIL=58, VERSION='conv2', USED_KEY='conv:used:'+VERSION;
   /* stable address of the standalone copy (tools/build-conversacion.py output, hosted on a
      static host). Inside the viewer's frame the microphone is refused, so the tab points there. */
   var CONV_URL='https://kenlevin00.github.io/lt-conversacion/';
-  var SETS=[{"g":15,"w":["No puedo venir mañana.","¿Qué pasa?","Tengo que hablar con ella."],"a":[["Quiero comprar la casa, pero no tengo dinero.","I want to buy the house, but I don't have money."],["¿Por qué no me lo explicas ahora?","Why don't you explain it to me now?"],["Pienso comer más tarde con él.","I plan to eat later with him."],["Ella no entiende por qué tienes que salir.","She doesn't understand why you have to leave."],["Quiere venir mañana, pero no puede salir.","He wants to come tomorrow, but he can't get out."]],"b":["¿Qué quieres hacer mañana?","¿Puedes venir a la casa ahora?","¿Por qué no hablas con ella?","¿Cuándo tienes que salir?","¿Piensas comprar la casa?"]},{"g":17,"w":["Duermo mucho.","¿Empezamos ahora?","No encuentro el coche."],"a":[["No encuentro el dinero. ¿Lo tienes?","I can't find the money. Do you have it?"],["Empezamos mañana con el doctor.","We start tomorrow with the doctor."],["Pienso que sí, pero no puedo mostrarte la casa ahora.","I think so, but I can't show you the house now."],["Tomamos una bebida más tarde.","We're having a drink later."],["Ella duerme mucho, pero no come bien.","She sleeps a lot, but she doesn't eat well."]],"b":["¿Qué tomamos más tarde?","¿Cuándo empieza el concierto?","¿Piensas que puedo hacerlo?","¿Hablamos mañana con el profesor?","¿Qué quieres beber ahora?"]},{"g":19,"w":["¿A dónde vas?","Vivimos aquí.","Vamos a comer."],"a":[["Siempre como carne, pero prefiero comer arroz esta noche.","I always eat meat, but I prefer to eat rice tonight."],["¿A dónde van? Tengo que saberlo.","Where are they going? I have to know."],["No entendemos por qué no vienen a comer.","We don't understand why they don't come to eat."],["Vamos a la escuela mañana y comemos aquí más tarde.","We go to school tomorrow and we eat here later."],["Vivimos aquí, pero preferimos el pueblo.","We live here, but we prefer the town."]],"b":["¿Dónde vives?","¿A dónde vas esta noche?","¿Siempre comes carne?","¿Vamos a comer más tarde?","¿Por qué no vienen a la casa esta noche?"]},{"g":21,"w":["Nos vemos pronto.","He comprado carne.","¿Ves la luz?"],"a":[["No he hablado con ella, pero la veo mañana.","I haven't spoken with her, but I see her tomorrow."],["Hemos tomado mucho y ahora no puedo dormir.","We have drunk a lot and now I can't sleep."],["Voy a ver la casa la semana que viene.","I'm going to see the house next week."],["¿Has esperado mucho tiempo? Vengo ahora.","Have you waited a long time? I'm coming now."],["Lo hemos anticipado, pero no lo hemos preparado bien.","We have anticipated it, but we haven't prepared it well."]],"b":["¿Has comprado la carne?","¿Qué vas a hacer la semana que viene?","¿Cuándo nos vemos?","¿Cuándo has hablado con ella?","¿Qué has tomado esta noche?"]},{"g":23,"w":["Me he perdido.","¿Has terminado?","Ellos han venido."],"a":[["Nosotros hemos vendido la casa, pero ellos no lo saben.","We have sold the house, but they don't know it."],["No he entendido el problema, pero él sí.","I haven't understood the problem, but he has."],["¿Usted ha venido a ver el sistema?","Have you (formal) come to see the system?"],["Nos hemos perdido y no encontramos el río.","We have got lost and we can't find the river."],["Ellas han terminado la conversación y quieren salir.","They (f) have finished the conversation and want to leave."]],"b":["¿Has vendido el coche?","¿Tú has entendido el problema?","¿Ellos han venido a la casa?","¿Ha terminado usted el programa?","¿Hemos perdido mucho tiempo?"]},{"g":25,"w":["Te lo doy mañana.","Me quedo aquí.","Hasta mañana."],"a":[["¿Me das el dinero ahora? Tengo que comprar la carne a las seis.","Will you give me the money now? I have to buy the meat at six."],["Nos quedamos aquí hasta las ocho.","We're staying here until eight."],["Ella nos cocina arroz esta noche.","She's cooking us rice tonight."],["Ustedes me hablan mucho, pero no me dan tiempo.","You (pl) talk to me a lot, but you don't give me time."],["¿Te quedas esta noche? Tenemos arroz y aceitunas.","Are you staying tonight? We have rice and olives."]],"b":["¿Me lo das mañana?","¿Hasta cuándo te quedas?","¿Comemos a las ocho?","¿Qué me cocinas esta noche?","¿Ustedes vienen a las seis?"]},{"g":27,"w":["Me llamo Ana.","Vivo en la casa roja.","Debemos ir."],"a":[["Vivo en una casa grande en el pueblo.","I live in a big house in the town."],["Debemos quedarnos en la escuela hasta las siete.","We must stay at school until seven."],["No podemos comprar el coche rojo, pero podemos comprar la cámara digital.","We can't buy the red car, but we can buy the digital camera."],["Me voy a quedar en casa esta noche y voy a cocinar arroz.","I'm going to stay home tonight and I'm going to cook rice."],["Ella tiene un coche nuevo y una casa grande.","She has a new car and a big house."]],"b":["¿Cómo te llamas?","¿Vives en una casa grande?","¿Quieres comprar el coche rojo?","¿Debemos quedarnos aquí hasta las siete?","¿En qué pueblo vives?"]},{"g":29,"w":["Estoy muy cansado.","El coche es muy caro.","¿Dónde están?"],"a":[["Los profesores están cansados, pero el programa es muy intensivo.","The teachers are tired, but the programme is very intensive."],["Estamos en la casa, pero ellos están en el pueblo.","We are in the house, but they are in the town."],["Es un doctor muy creativo, pero no tiene dinero.","He is a very creative doctor, but he has no money."],["Estoy muerto. He esperado aquí hasta las diez.","I'm dead (exhausted). I have waited here until ten."],["Las casas son muy caras aquí y no tenemos el dinero.","The houses are very expensive here and we don't have the money."]],"b":["¿Cómo estás?","¿Dónde estás ahora?","¿El coche es muy caro?","¿Los profesores están cansados?","¿Es muy caro vivir aquí?"]},{"g":31,"w":["Soy estudiante.","¿Cómo es él?","Debe estar aquí."],"a":[["No voy porque estoy muy cansado.","I'm not going because I'm very tired."],["Él es español y es muy estricto.","He is Spanish and he is very strict."],["Deben estar en la escuela porque no están en la casa.","They must be at school because they aren't in the house."],["¿Cómo es el profesor? Es muy sincero, pero está cansado.","What is the teacher like? He is very sincere, but he is tired."],["Voy a estar en España la semana que viene.","I'm going to be in Spain next week."]],"b":["¿Cómo eres?","¿Eres español?","¿Por qué no vienes esta noche?","¿Dónde vas a estar mañana?","¿Cómo es ella?"]},{"g":33,"w":["Soy de aquí.","Estoy listo.","Es tan aburrido."],"a":[["Soy de España, pero vivo aquí porque estoy casado.","I'm from Spain, but I live here because I'm married."],["El profesor es muy listo, pero no está listo.","The teacher is very clever, but he isn't ready."],["Estamos tan ocupados ahora, pero somos muy felices.","We are so busy now, but we are very happy."],["Ella es una persona muy feliz, pero ahora está preocupada.","She is a very happy person, but now she is worried."],["Quiero saber cómo está el estudiante de España.","I want to know how the student from Spain is."]],"b":["¿De dónde eres?","¿Estás libre esta noche?","¿Es aburrida la escuela?","¿Eres una persona feliz?","¿Por qué estás tan ocupado?"]},{"g":35,"w":["Estoy comiendo.","Está desayunando ahora.","Salgo pronto."],"a":[["Estoy siendo honesto, no quiero ir esta noche.","I'm being honest, I don't want to go tonight."],["Están vendiendo la casa porque no tienen dinero.","They are selling the house because they have no money."],["¿Qué estás haciendo? Estoy preparando el desayuno.","What are you doing? I'm preparing breakfast."],["Lo estamos esperando aquí, pero está en la escuela.","We are waiting for him here, but he is at school."],["Salgo pronto, pero ahora estoy hablando con el doctor.","I'm leaving soon, but right now I'm talking with the doctor."]],"b":["¿Qué estás comiendo?","¿Estás siendo sincero?","¿Están desayunando ahora?","¿Qué estás preparando?","¿Lo estás esperando aquí?"]},{"g":37,"w":["Te llamaré mañana.","Me doy cuenta.","Le daré algo."],"a":[["Comeré con ellos mañana, pero esta noche estaré en la casa.","I'll eat with them tomorrow, but tonight I'll be in the house."],["Les hablaré la semana que viene porque ahora estoy muy ocupado.","I'll speak to them next week because right now I'm very busy."],["¿Te das cuenta? Ella no va a venir esta noche.","Do you realise? She isn't going to come tonight."],["Le daremos la tarta a las siete.","We'll give him the cake at seven."],["Iremos a España en el verano y estaremos muy bien.","We'll go to Spain in the summer and we'll be very well."]],"b":["¿Dónde comerás mañana?","¿Cuándo le hablarás?","¿Estarás en la casa esta noche?","¿Irás a España en el verano?","¿Qué les darás?"]},{"g":39,"w":["Es para ti.","Se queda en casa.","Quiero decirle algo."],"a":[["¿Te quedas? Tengo algo para ti.","Are you staying? I have something for you."],["Se hablan mucho, pero no se entienden.","They talk to each other a lot, but they don't understand each other."],["Quiero decirle algo importante, pero él está con ustedes.","I want to tell him something important, but he is with you (pl)."],["La casa es de ellos, pero nosotros nos quedamos aquí hasta el verano.","The house is theirs, but we are staying here until the summer."],["¿Me haces un favor? Quiero quedarme aquí esta noche.","Will you do me a favour? I want to stay here tonight."]],"b":["¿Por qué no te quedas?","¿Es para mí?","¿Qué le quieres decir?","¿Ustedes se hablan mucho?","¿La casa es de ustedes?"]},{"g":42,"w":["Me gusta bailar.","¿Vienes conmigo?","Sueño contigo."],"a":[["Me gustaría ir a España contigo, pero depende de ella.","I would like to go to Spain with you, but it depends on her."],["Pienso mucho en ti y sueño con vivir en el pueblo.","I think about you a lot and I dream of living in the town."],["Bailaría contigo esta noche, pero estoy muy cansado.","I would dance with you tonight, but I'm very tired."],["Nos gustan las casas grandes, pero no podríamos comprar la casa roja.","We like big houses, but we couldn't buy the red house."],["Se está enamorando de ella, pero ella no piensa en él.","He is falling in love with her, but she doesn't think about him."]],"b":["¿Qué te gustaría hacer esta noche?","¿Piensas mucho en el dinero?","¿Irías a España conmigo?","¿Con qué sueñas?","¿Podrías venir conmigo mañana?"]},{"g":44,"w":["Deberías venir.","¿Me das una mano?","No quiero ese coche."],"a":[["Habría ido a la escuela, pero estoy muy cansado.","I would have gone to school, but I'm very tired."],["Deberíamos hablar con ella esta noche, no mañana.","We should talk with her tonight, not tomorrow."],["Me gustaría tomar una foto, pero no tengo mi cámara.","I would like to take a photo, but I don't have my camera."],["Nos habría gustado ver esa casa.","We would have liked to see that house."],["¿Me podrías dar una mano con el problema? Es muy grande.","Could you give me a hand with the problem? It's very big."]],"b":["¿Qué habrías comprado con el dinero?","¿Deberíamos quedarnos en casa esta noche?","¿Te gusta este pueblo?","¿Me puedes dar una mano mañana?","¿Por qué no quieres ese coche?"]},{"g":45,"w":["Me parece bien.","¿Te interesa?","Le gusta mucho."],"a":[["Me parece que no quiere salir esta noche.","It seems to me that he doesn't want to go out tonight."],["Les interesa comprar la casa, pero no tienen el dinero.","They're interested in buying the house, but they don't have the money."],["Quiero ponerle un poco más sal.","I want to put a little more salt on it."],["¿Le interesaría salir a bailar esta noche?","Would she be interested in going out to dance tonight?"],["No le parece bien, pero me gusta la casa.","It doesn't seem right to her, but I like the house."]],"b":["¿Te interesa salir esta noche?","¿Te parece bien la casa roja?","¿Les gusta vivir aquí?","¿Quieres ponerle sal?","¿Te parece que deberíamos ir?"]},{"g":47,"w":["Te esperaba aquí.","La cena se quemaba.","¿Cenamos a las ocho?"],"a":[["Hablaba con ella mucho, pero ahora no la veo.","I used to talk with her a lot, but now I don't see her."],["Intentaban encontrarlo, pero no está en la casa.","They were trying to find it, but it isn't in the house."],["Esos coches se rompen todo el tiempo.","Those cars break all the time."],["Me quemo en el sol en el verano.","I get burnt in the sun in the summer."],["Nos quedábamos en casa y cenábamos a las ocho.","We used to stay at home and have dinner at eight."]],"b":["¿Qué cenabas en el verano?","¿Hablabas mucho con ella?","¿Se quemaba la cena?","¿Te quemas en el sol?","¿Estos coches se rompen todo el tiempo?"]},{"g":48,"w":["Se vende.","¿Cómo se dice?","Me quedan dos."],"a":[["Comía carne todo el tiempo, pero ahora prefiero el arroz.","I used to eat meat all the time, but now I prefer rice."],["La casa se vendía, pero ahora no se vende.","The house was for sale, but now it isn't."],["Tenía que salir, pero no quería.","I had to leave, but I didn't want to."],["Le quedan dos y no me queda dinero.","He has two left and I have no money left."],["Se habla español aquí, pero no sé cómo se dice.","Spanish is spoken here, but I don't know how it's said."]],"b":["¿Qué comías en el verano?","¿Se vende la casa?","¿Te quedan dos?","¿Tenías que salir esta noche?","¿Qué vendías en el pueblo?"]},{"g":50,"w":["Era estudiante.","Gracias por venir.","Iba a llamarte ayer."],"a":[["No veía el problema, pero ahora lo veo todos los días.","I didn't use to see the problem, but now I see it every day."],["Tenía que verte ayer, pero no tenía tiempo.","I had to see you yesterday, but I didn't have time."],["Íbamos a hacerlo el lunes.","We were going to do it on Monday."],["Lo compro para ti, no por ti.","I'm buying it for you, not because of you."],["Me quedo por tres días porque tengo que trabajar.","I'm staying for three days because I have to work."]],"b":["¿A dónde ibas ayer?","¿Eras estudiante?","¿Por qué ibas a la casa?","¿Trabajas todos los días?","¿Te quedas por tres días?"]},{"g":52,"w":["Estoy para ti.","Estoy aquí para verte.","Nadar es saludable."],"a":[["He venido por ti, no por el curso.","I have come because of you, not because of the course."],["Gracias por llamarme; estaba cansada de trabajar.","Thanks for calling me; I was tired of working."],["Te he llamado para hablarlo.","I've called you to talk about it."],["Lo estoy explicando, pero es muy frustrante.","I'm explaining it, but it's very frustrating."],["Cambiaría este por ese.","I would change this one for that one."]],"b":["¿Por qué estás aquí?","¿Qué haces para resolverlo?","¿Es saludable nadar todos los días?","¿Estabas cansado ayer?","¿Qué haces los martes?"]}];
+  var SETS=[{"g":15,"w":["No puedo venir mañana.","¿Qué pasa?","Tengo que hablar con ella."],"a":[["Quiero comprar la casa, pero no tengo dinero.","I want to buy the house, but I don't have money."],["¿Por qué no me lo explicas ahora?","Why don't you explain it to me now?"],["Pienso comer más tarde con él.","I plan to eat later with him."],["Ella no entiende por qué tienes que salir.","She doesn't understand why you have to leave."],["Quiere venir mañana, pero no puede salir.","He wants to come tomorrow, but he can't get out."]],"b":["¿Qué quieres hacer mañana?","¿Puedes venir a la casa ahora?","¿Por qué no hablas con ella?","¿Cuándo tienes que salir?","¿Piensas comprar la casa?"]},{"g":17,"w":["Duermo mucho.","¿Empezamos ahora?","No encuentro el coche."],"a":[["No encuentro el dinero. ¿Lo tienes?","I can't find the money. Do you have it?"],["Empezamos mañana con el doctor.","We start tomorrow with the doctor."],["Pienso que sí, pero no puedo mostrarte la casa ahora.","I think so, but I can't show you the house now."],["Tomamos una bebida más tarde.","We're having a drink later."],["Ella duerme mucho, pero no come bien.","She sleeps a lot, but she doesn't eat well."]],"b":["¿Qué tomamos más tarde?","¿Cuándo empieza el concierto?","¿Piensas que puedo hacerlo?","¿Hablamos mañana con el profesor?","¿Qué quieres beber ahora?"]},{"g":19,"w":["¿A dónde vas?","Vivimos aquí.","Vamos a comer."],"a":[["Siempre como carne, pero prefiero comer arroz esta noche.","I always eat meat, but I prefer to eat rice tonight."],["¿A dónde van? Tengo que saberlo.","Where are they going? I have to know."],["No entendemos por qué no vienen a comer.","We don't understand why they don't come to eat."],["Vamos a la escuela mañana y comemos aquí más tarde.","We go to school tomorrow and we eat here later."],["Vivimos aquí, pero preferimos el pueblo.","We live here, but we prefer the town."]],"b":["¿Dónde vives?","¿A dónde vas esta noche?","¿Siempre comes carne?","¿Vamos a comer más tarde?","¿Por qué no vienen a la casa esta noche?"]},{"g":21,"w":["Nos vemos pronto.","He comprado carne.","¿Ves la luz?"],"a":[["No he hablado con ella, pero la veo mañana.","I haven't spoken with her, but I see her tomorrow."],["Hemos tomado mucho y ahora no puedo dormir.","We have drunk a lot and now I can't sleep."],["Voy a ver la casa la semana que viene.","I'm going to see the house next week."],["¿Has esperado mucho tiempo? Vengo ahora.","Have you waited a long time? I'm coming now."],["Lo hemos anticipado, pero no lo hemos preparado bien.","We have anticipated it, but we haven't prepared it well."]],"b":["¿Has comprado la carne?","¿Qué vas a hacer la semana que viene?","¿Cuándo nos vemos?","¿Cuándo has hablado con ella?","¿Qué has tomado esta noche?"]},{"g":23,"w":["Me he perdido.","¿Has terminado?","Ellos han venido."],"a":[["Nosotros hemos vendido la casa, pero ellos no lo saben.","We have sold the house, but they don't know it."],["No he entendido el problema, pero él sí.","I haven't understood the problem, but he has."],["¿Usted ha venido a ver el sistema?","Have you (formal) come to see the system?"],["Nos hemos perdido y no encontramos el río.","We have got lost and we can't find the river."],["Ellas han terminado la conversación y quieren salir.","They (f) have finished the conversation and want to leave."]],"b":["¿Has vendido el coche?","¿Tú has entendido el problema?","¿Ellos han venido a la casa?","¿Ha terminado usted el programa?","¿Hemos perdido mucho tiempo?"]},{"g":25,"w":["Te lo doy mañana.","Me quedo aquí.","Hasta mañana."],"a":[["¿Me das el dinero ahora? Tengo que comprar la carne a las seis.","Will you give me the money now? I have to buy the meat at six."],["Nos quedamos aquí hasta las ocho.","We're staying here until eight."],["Ella nos cocina arroz esta noche.","She's cooking us rice tonight."],["Ustedes me hablan mucho, pero no me dan tiempo.","You (pl) talk to me a lot, but you don't give me time."],["¿Te quedas esta noche? Tenemos arroz y aceitunas.","Are you staying tonight? We have rice and olives."]],"b":["¿Me lo das mañana?","¿Hasta cuándo te quedas?","¿Comemos a las ocho?","¿Qué me cocinas esta noche?","¿Ustedes vienen a las seis?"]},{"g":27,"w":["Me llamo Ana.","Vivo en la casa roja.","Debemos ir."],"a":[["Vivo en una casa grande en el pueblo.","I live in a big house in the town."],["Debemos quedarnos en la escuela hasta las siete.","We must stay at school until seven."],["No podemos comprar el coche rojo, pero podemos comprar la cámara digital.","We can't buy the red car, but we can buy the digital camera."],["Me voy a quedar en casa esta noche y voy a cocinar arroz.","I'm going to stay home tonight and I'm going to cook rice."],["Ella tiene un coche nuevo y una casa grande.","She has a new car and a big house."]],"b":["¿Cómo te llamas?","¿Vives en una casa grande?","¿Quieres comprar el coche rojo?","¿Debemos quedarnos aquí hasta las siete?","¿En qué pueblo vives?"]},{"g":29,"w":["Estoy muy cansado.","El coche es muy caro.","¿Dónde están?"],"a":[["Los profesores están cansados, pero el programa es muy intensivo.","The teachers are tired, but the programme is very intensive."],["Estamos en la casa, pero ellos están en el pueblo.","We are in the house, but they are in the town."],["Es un doctor muy creativo, pero no tiene dinero.","He is a very creative doctor, but he has no money."],["Estoy muerto. He esperado aquí hasta las diez.","I'm dead (exhausted). I have waited here until ten."],["Las casas son muy caras aquí y no tenemos el dinero.","The houses are very expensive here and we don't have the money."]],"b":["¿Cómo estás?","¿Dónde estás ahora?","¿El coche es muy caro?","¿Los profesores están cansados?","¿Es muy caro vivir aquí?"]},{"g":31,"w":["Soy estudiante.","¿Cómo es él?","Debe estar aquí."],"a":[["No voy porque estoy muy cansado.","I'm not going because I'm very tired."],["Él es español y es muy estricto.","He is Spanish and he is very strict."],["Deben estar en la escuela porque no están en la casa.","They must be at school because they aren't in the house."],["¿Cómo es el profesor? Es muy sincero, pero está cansado.","What is the teacher like? He is very sincere, but he is tired."],["Voy a estar en España la semana que viene.","I'm going to be in Spain next week."]],"b":["¿Cómo eres?","¿Eres español?","¿Por qué no vienes esta noche?","¿Dónde vas a estar mañana?","¿Cómo es ella?"]},{"g":33,"w":["Soy de aquí.","Estoy listo.","Es tan aburrido."],"a":[["Soy de España, pero vivo aquí porque estoy casado.","I'm from Spain, but I live here because I'm married."],["El profesor es muy listo, pero no está listo.","The teacher is very clever, but he isn't ready."],["Estamos tan ocupados ahora, pero somos muy felices.","We are so busy now, but we are very happy."],["Ella es una persona muy feliz, pero ahora está preocupada.","She is a very happy person, but now she is worried."],["Quiero saber cómo está el estudiante de España.","I want to know how the student from Spain is."]],"b":["¿De dónde eres?","¿Estás libre esta noche?","¿Es aburrida la escuela?","¿Eres una persona feliz?","¿Por qué estás tan ocupado?"]},{"g":35,"w":["Estoy comiendo.","Está desayunando ahora.","Salgo pronto."],"a":[["Estoy siendo honesto, no quiero ir esta noche.","I'm being honest, I don't want to go tonight."],["Están vendiendo la casa porque no tienen dinero.","They are selling the house because they have no money."],["¿Qué estás haciendo? Estoy preparando el desayuno.","What are you doing? I'm preparing breakfast."],["Lo estamos esperando aquí, pero está en la escuela.","We are waiting for him here, but he is at school."],["Salgo pronto, pero ahora estoy hablando con el doctor.","I'm leaving soon, but right now I'm talking with the doctor."]],"b":["¿Qué estás comiendo?","¿Estás siendo sincero?","¿Están desayunando ahora?","¿Qué estás preparando?","¿Lo estás esperando aquí?"]},{"g":37,"w":["Te llamaré mañana.","Me doy cuenta.","Le daré algo."],"a":[["Comeré con ellos mañana, pero esta noche estaré en la casa.","I'll eat with them tomorrow, but tonight I'll be in the house."],["Les hablaré la semana que viene porque ahora estoy muy ocupado.","I'll speak to them next week because right now I'm very busy."],["¿Te das cuenta? Ella no va a venir esta noche.","Do you realise? She isn't going to come tonight."],["Le daremos la tarta a las siete.","We'll give him the cake at seven."],["Iremos a España en el verano y estaremos muy bien.","We'll go to Spain in the summer and we'll be very well."]],"b":["¿Dónde comerás mañana?","¿Cuándo le hablarás?","¿Estarás en la casa esta noche?","¿Irás a España en el verano?","¿Qué les darás?"]},{"g":39,"w":["Es para ti.","Se queda en casa.","Quiero decirle algo."],"a":[["¿Te quedas? Tengo algo para ti.","Are you staying? I have something for you."],["Se hablan mucho, pero no se entienden.","They talk to each other a lot, but they don't understand each other."],["Quiero decirle algo importante, pero él está con ustedes.","I want to tell him something important, but he is with you (pl)."],["La casa es de ellos, pero nosotros nos quedamos aquí hasta el verano.","The house is theirs, but we are staying here until the summer."],["¿Me haces un favor? Quiero quedarme aquí esta noche.","Will you do me a favour? I want to stay here tonight."]],"b":["¿Por qué no te quedas?","¿Es para mí?","¿Qué le quieres decir?","¿Ustedes se hablan mucho?","¿La casa es de ustedes?"]},{"g":42,"w":["Me gusta bailar.","¿Vienes conmigo?","Sueño contigo."],"a":[["Me gustaría ir a España contigo, pero depende de ella.","I would like to go to Spain with you, but it depends on her."],["Pienso mucho en ti y sueño con vivir en el pueblo.","I think about you a lot and I dream of living in the town."],["Bailaría contigo esta noche, pero estoy muy cansado.","I would dance with you tonight, but I'm very tired."],["Nos gustan las casas grandes, pero no podríamos comprar la casa roja.","We like big houses, but we couldn't buy the red house."],["Se está enamorando de ella, pero ella no piensa en él.","He is falling in love with her, but she doesn't think about him."]],"b":["¿Qué te gustaría hacer esta noche?","¿Piensas mucho en el dinero?","¿Irías a España conmigo?","¿Con qué sueñas?","¿Podrías venir conmigo mañana?"]},{"g":44,"w":["Deberías venir.","¿Me das una mano?","No quiero ese coche."],"a":[["Habría ido a la escuela, pero estoy muy cansado.","I would have gone to school, but I'm very tired."],["Deberíamos hablar con ella esta noche, no mañana.","We should talk with her tonight, not tomorrow."],["Me gustaría tomar una foto, pero no tengo mi cámara.","I would like to take a photo, but I don't have my camera."],["Nos habría gustado ver esa casa.","We would have liked to see that house."],["¿Me podrías dar una mano con el problema? Es muy grande.","Could you give me a hand with the problem? It's very big."]],"b":["¿Qué habrías comprado con el dinero?","¿Deberíamos quedarnos en casa esta noche?","¿Te gusta este pueblo?","¿Me puedes dar una mano mañana?","¿Por qué no quieres ese coche?"]},{"g":45,"w":["Me parece bien.","¿Te interesa?","Le gusta mucho."],"a":[["Me parece que no quiere salir esta noche.","It seems to me that he doesn't want to go out tonight."],["Les interesa comprar la casa, pero no tienen el dinero.","They're interested in buying the house, but they don't have the money."],["Quiero ponerle un poco más sal.","I want to put a little more salt on it."],["¿Le interesaría salir a bailar esta noche?","Would she be interested in going out to dance tonight?"],["No le parece bien, pero me gusta la casa.","It doesn't seem right to her, but I like the house."]],"b":["¿Te interesa salir esta noche?","¿Te parece bien la casa roja?","¿Les gusta vivir aquí?","¿Quieres ponerle sal?","¿Te parece que deberíamos ir?"]},{"g":47,"w":["Te esperaba aquí.","La cena se quemaba.","¿Cenamos a las ocho?"],"a":[["Hablaba con ella mucho, pero ahora no la veo.","I used to talk with her a lot, but now I don't see her."],["Intentaban encontrarlo, pero no está en la casa.","They were trying to find it, but it isn't in the house."],["Esos coches se rompen todo el tiempo.","Those cars break all the time."],["Me quemo en el sol en el verano.","I get burnt in the sun in the summer."],["Nos quedábamos en casa y cenábamos a las ocho.","We used to stay at home and have dinner at eight."]],"b":["¿Qué cenabas en el verano?","¿Hablabas mucho con ella?","¿Se quemaba la cena?","¿Te quemas en el sol?","¿Estos coches se rompen todo el tiempo?"]},{"g":48,"w":["Se vende.","¿Cómo se dice?","Me quedan dos."],"a":[["Comía carne todo el tiempo, pero ahora prefiero el arroz.","I used to eat meat all the time, but now I prefer rice."],["La casa se vendía, pero ahora no se vende.","The house was for sale, but now it isn't."],["Tenía que salir, pero no quería.","I had to leave, but I didn't want to."],["Le quedan dos y no me queda dinero.","He has two left and I have no money left."],["Se habla español aquí, pero no sé cómo se dice.","Spanish is spoken here, but I don't know how it's said."]],"b":["¿Qué comías en el verano?","¿Se vende la casa?","¿Te quedan dos?","¿Tenías que salir esta noche?","¿Qué vendías en el pueblo?"]},{"g":50,"w":["Era estudiante.","Gracias por venir.","Iba a llamarte ayer."],"a":[["No veía el problema, pero ahora lo veo todos los días.","I didn't use to see the problem, but now I see it every day."],["Tenía que verte ayer, pero no tenía tiempo.","I had to see you yesterday, but I didn't have time."],["Íbamos a hacerlo el lunes.","We were going to do it on Monday."],["Lo compro para ti, no por ti.","I'm buying it for you, not because of you."],["Me quedo por tres días porque tengo que trabajar.","I'm staying for three days because I have to work."]],"b":["¿A dónde ibas ayer?","¿Eras estudiante?","¿Por qué ibas a la casa?","¿Trabajas todos los días?","¿Te quedas por tres días?"]},{"g":52,"w":["Estoy para ti.","Estoy aquí para verte.","Nadar es saludable."],"a":[["He venido por ti, no por el curso.","I have come because of you, not because of the course."],["Gracias por llamarme; estaba cansada de trabajar.","Thanks for calling me; I was tired of working."],["Te he llamado para hablarlo.","I've called you to talk about it."],["Lo estoy explicando, pero es muy frustrante.","I'm explaining it, but it's very frustrating."],["Cambiaría este por ese.","I would change this one for that one."]],"b":["¿Por qué estás aquí?","¿Qué haces para resolverlo?","¿Es saludable nadar todos los días?","¿Estabas cansado ayer?","¿Qué haces los martes?"]},{"g":54,"w":["Ya había comido.","La puerta está cerrada.","No podía venir."],"a":[["Quería llamarte, pero no podía.","I wanted to call you, but I couldn't."],["Lo buscaba porque lo había perdido.","I was looking for it because I had lost it."],["Ella quería cenar conmigo, pero yo ya había cenado.","She wanted to have dinner with me, but I had already had dinner."],["Me gustaría haber ido contigo.","I would like to have gone with you."],["La silla está mojada, pero es una silla muy cara.","The chair is wet, but it's a very expensive chair."]],"b":["¿Qué buscabas ayer?","¿Ya habías comido?","¿Por qué no podías venir?","¿Está cerrada la puerta?","¿Te cansas mucho?"]},{"g":56,"w":["Se ha roto.","¿Quién va?","La puerta está abierta."],"a":[["Debería haberlo hecho, pero no podía.","I should have done it, but I couldn't."],["No sé con quién tengo que hablar.","I don't know who I have to talk to."],["Es la chica con que trabajaba.","She's the girl I used to work with."],["La fiesta está cancelada porque la casa está cerrada.","The party is cancelled because the house is closed."],["¿Cuál quieres? Este está roto.","Which one do you want? This one is broken."]],"b":["¿Con quién vas a la fiesta?","¿Qué has hecho esta semana?","¿Cuál te gusta más?","¿De dónde es tu hermano?","¿Quién está en la casa ahora?"]},{"g":58,"w":["Lo compré ayer.","No hablamos así.","Lo interesante es la fiesta."],"a":[["Te lo envié, pero no lo tienes todavía.","I sent it to you, but you don't have it yet."],["Lo iba a hacer, pero lo olvidé.","I was going to do it, but I forgot."],["Lo bueno es que vivimos juntos.","The good thing is that we live together."],["No quiero hablar de lo de la fiesta así.","I don't want to talk about the party business like this."],["Me lo compró para la cena.","He bought it for me for dinner."]],"b":["¿Qué es lo interesante de España?","¿Quién habló contigo ayer?","¿Todavía vives en la casa grande?","¿Comemos juntos mañana?","¿Qué es lo malo de trabajar todos los días?"]}];
   var $=function(id){return document.getElementById(id);};
   var setSel=$('cv-set'); if(!setSel)return;
-  var voiceSel=$('cv-voice'), rateSel=$('cv-rate'), gapSel=$('cv-gap'), ackBox=$('cv-ack'), enSel=$('cv-enlang'), submitSel=$('cv-submit');
+  var voiceSel=$('cv-voice'), rateSel=$('cv-rate'), gapSel=$('cv-gap'), ackBox=$('cv-ack'), enSel=$('cv-enlang'), submitSel=$('cv-submit'), wakeSel=$('cv-wake');
   var setup=$('cv-setup'), stage=$('cv-stage'), doneBox=$('cv-done');
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  $('cv-note').textContent='Sets progresivos: la gramática sube de la pista '+SETS[0].g+' a la '+SETS[SETS.length-1].g+' en '+SETS.length+' sets; el vocabulario llega hasta la pista '+CONV_CEIL+' en todos. Mantén la pantalla encendida; la primera vez el navegador pedirá permiso para el micrófono.';
+  $('cv-note').textContent='Sets progresivos: la gramática sube de la pista '+SETS[0].g+' a la '+SETS[SETS.length-1].g+' en '+SETS.length+' sets; el vocabulario llega hasta la pista '+CONV_CEIL+' en todos. La pantalla se queda encendida durante la sesión (Pantalla, arriba); si el micro se corta, «Reactivar micro» lo abre otra vez en la misma frase. La primera vez el navegador pedirá permiso para el micrófono.';
   window.__convCeil=CONV_CEIL; window.__convSets=SETS;
 
   /* store first; browser storage second, for the top-level copy of the page where the
@@ -746,6 +753,7 @@
   sget('conv:ack',true).then(function(v){ ackBox.checked=(v!==false); });
   sget('conv:enlang','en-US').then(function(v){ enSel.value=String(v||'en-US'); });
   sget('conv:submit','button').then(function(v){ submitSel.value=(v==='auto')?'auto':'button'; });
+  sget('conv:wake','on').then(function(v){ wakeSel.value=(v==='off')?'off':'on'; });
 
   /* ---- session state ---- */
   var S=null, attempt=0, rec=null, needsTap=false, timer=null;
@@ -761,18 +769,26 @@
   function cur(){ return S.items[S.i]; }
   function bump(){ attempt++; if(timer){clearTimeout(timer);timer=null;} if(rec){try{rec.abort();}catch(e){} rec=null;} if(window.speechSynthesis)speechSynthesis.cancel(); }
 
-  $('cv-start').addEventListener('click',function(){
-    var si=parseInt(setSel.value,10)||0;
+  $('cv-start').addEventListener('click',function(){ begin(parseInt(setSel.value,10)||0,null); });
+  /* v86: one way in for a fresh session and for a resumed one (Recargar y seguir, or a tab iOS reloaded) */
+  function begin(si,saved){
     sset('conv:voice',voiceSel.value); sset('conv:rate',rateSel.value); sset('conv:gap',gapSel.value);
-    sset('conv:ack',ackBox.checked); sset('conv:enlang',enSel.value); sset('conv:submit',submitSel.value);
+    sset('conv:ack',ackBox.checked); sset('conv:enlang',enSel.value); sset('conv:submit',submitSel.value); sset('conv:wake',wakeSel.value);
     /* the synth must be unlocked inside the tap on iOS, so speak first and check the
        microphone in parallel; a blocked microphone stops the session before it starts */
     bump(); var a=attempt;
-    speak('Empezamos.',a,function(){});
+    speak(saved?'Seguimos.':'Empezamos.',a,function(){});
+    wakeOn();                                 /* inside the tap: keep the screen from locking mid-set */
     micCheck().then(function(state){
       paintDiag(state);
-      if(state!=='ok'&&state!=='no-api'){ bump(); return; }
+      if(state!=='ok'&&state!=='no-api'){ bump(); wakeOff(); return; }
       S={set:si,items:buildItems(SETS[si]),i:-1,t0:Date.now(),lastPhase:null};
+      if(saved){
+        S.t0=saved.t0||S.t0; S.resumed=1; S.i=saved.i-1;
+        (saved.items||[]).forEach(function(x,k){ var it=S.items[k]; if(it&&x)Object.keys(x).forEach(function(f){ if(x[f]!==undefined&&x[f]!==null)it[f]=x[f]; }); });
+        S.items[saved.i].resumed=true;
+      }
+      hideResume();
       setup.hidden=true; doneBox.hidden=true; stage.hidden=false;
       /* let "Empezamos" finish if it is still being said */
       var waited=0;
@@ -782,7 +798,44 @@
         next();
       })();
     });
-  });
+  }
+
+  /* ---- v86: keeping the microphone alive ----
+     Ken, 2026-09-30: the page worked for three items and then the microphone was gone, and nothing on
+     screen brought it back. Three dead ends caused that: an error other than silence ended the loop
+     for good, 60 silent restarts ended it, and a blocked microphone after a tap was terminal; none of
+     the buttons re-opened the microphone — only Empezar did. And with the phone in a pocket, iOS
+     auto-lock suspends the page after about a minute, which kills recognition mid-set.
+       · a screen wake lock for the length of the session (Pantalla, default on)
+       · «Reactivar micro», always on the stage: re-opens the microphone inside the tap and listens
+         again on the same item, keeping the words already heard
+       · «Recargar y seguir», offered when a reconnect has already failed on the item: saves the
+         session, reloads, and the setup screen offers to carry on at that item
+       · audio-capture / network retried a few times before the mic is called lost; a recogniser that
+         goes quiet (no result, no end) for WATCH ms is aborted and restarted
+       · back from the background: the item is said again, or listening restarts, by itself */
+  var wake=null, wakeState='off', hiddenAt=0, phaseNow='idle';
+  function wakeOn(){
+    if(wakeSel.value==='off'){ wakeState='off'; return; }
+    if(!navigator.wakeLock||!navigator.wakeLock.request){ wakeState='na'; return; }
+    if(wake)return;
+    try{
+      navigator.wakeLock.request('screen').then(function(l){
+        wake=l; wakeState='on';
+        try{ l.addEventListener('release',function(){ if(wake===l)wake=null; }); }catch(e){}
+      },function(){ if(wakeState!=='on')wakeState='denied'; });
+    }catch(e){ wakeState='denied'; }
+  }
+  function wakeOff(){ var l=wake; wake=null; if(l){ try{ l.release(); }catch(e){} } }
+  var RESUME_KEY='conv:resume';
+  function saveResume(){
+    if(!S)return;
+    try{
+      lsSet(RESUME_KEY,JSON.stringify({v:VERSION,at:Date.now(),set:S.set,i:Math.max(0,S.i),t0:S.t0,n:S.items.length,
+        items:S.items.map(function(it){ return {heard:it.heard,repeats:it.repeats,retries:it.retries,shown:it.shown,tap:it.tap,listo:it.listo,err:it.err,mic:it.mic,stall:it.stall,hid:it.hid,reload:it.reload,resumed:it.resumed}; })}));
+    }catch(e){}
+  }
+  function clearResume(){ lsSet(RESUME_KEY,''); }
 
   /* ---- TTS ---- */
   function voice(){
@@ -816,57 +869,87 @@
   function setStage(cls,txt){ stage.className='stage'+(cls?' '+cls:''); $('cv-stxt').textContent=txt; }
   function recLang(it){ return it.phase==='B'?'es-ES':(enSel.value||'en-US'); }
   function manual(){ return submitSel.value!=='auto'; }
-  function askTap(it){ it.tap=true; setStage('','Toca para contestar'); $('cv-answer').hidden=false; $('cv-listo').hidden=true; }
+  function askTap(it){ it.tap=true; phaseNow='idle'; setStage('','Toca para contestar'); $('cv-answer').hidden=false; $('cv-listo').hidden=true; }
   var heardFinal='', heardInterim='';
   function heardText(){ return (heardFinal+' '+heardInterim).replace(/\s+/g,' ').trim(); }
-  function listen(a){
-    var it=cur(), man=manual();
+  /* v86: the microphone is gone — say so and make «Reactivar micro» the obvious button; once a
+     reconnect has already failed on this item, offer «Recargar y seguir» as well */
+  var micBtn=$('cv-mic'), reloadBtn=$('cv-reload');
+  function micLost(msg,keepListo){
+    var it=cur(); phaseNow='idle';
+    setStage('',msg+(it&&it.mic?' — prueba «Recargar y seguir»':' — toca «Reactivar micro»'));
+    micBtn.className='btn'; reloadBtn.hidden=!(it&&it.mic);
+    $('cv-listo').hidden=!(keepListo&&manual()&&heardText());
+  }
+  var WATCH=window.__CV_WATCH||25000, SOFT_MAX=3;
+  function listen(a,keep){
+    var it=cur(), man=manual(); phaseNow='listen';
     setStage('listening',(it.phase==='B'?'Escuchando… (español)':'Listening… (English)')+(man?' · toca Listo al terminar':''));
-    heardFinal=''; heardInterim=''; $('cv-heard').textContent=''; $('cv-answer').hidden=true; $('cv-listo').hidden=!man;
-    if(!SR){ it.err='no-SR'; setStage('','Este navegador no reconoce voz'); $('cv-listo').hidden=true; return; }
-    var restarts=0;
+    heardFinal=keep||''; heardInterim=''; $('cv-heard').textContent=heardFinal; $('cv-answer').hidden=true; $('cv-listo').hidden=!man;
+    micBtn.className='btn ghost'; reloadBtn.hidden=true;
+    if(!SR){ it.err='no-SR'; phaseNow='idle'; setStage('','Este navegador no reconoce voz'); $('cv-listo').hidden=true; return; }
+    var restarts=0, soft=0;
     function start(){
-      var r; try{ r=new SR(); }catch(e){ it.err='ctor'; setStage('','Sin reconocimiento'); $('cv-listo').hidden=true; return; }
+      var r; try{ r=new SR(); }catch(e){ it.err='ctor'; micLost('Sin reconocimiento'); return; }
       r.lang=recLang(it); r.interimResults=true; r.continuous=man; r.maxAlternatives=1;
-      var errored=null, gotFinal=false;
+      var errored=null, gotFinal=false, stalled=false, ended=false, last=Date.now();
+      function touch(){ last=Date.now(); }
+      r.onstart=touch; r.onaudiostart=touch; r.onsoundstart=touch; r.onspeechstart=touch;
       r.onresult=function(ev){ if(a!==attempt)return;
-        heardInterim='';
+        touch(); soft=0; heardInterim='';
         for(var k=ev.resultIndex;k<ev.results.length;k++){
           var t=ev.results[k][0].transcript;
           if(ev.results[k].isFinal){ heardFinal=(heardFinal+' '+t).trim(); gotFinal=true; } else heardInterim+=t;
         }
         $('cv-heard').textContent=heardText(); };
-      r.onerror=function(ev){ if(a!==attempt)return; errored=ev.error; };
-      r.onend=function(){ if(a!==attempt)return; rec=null;
+      r.onerror=function(ev){ if(a!==attempt)return; touch(); errored=ev.error; };
+      /* a recogniser that goes quiet — no result, no end, no error — is aborted; if even the abort
+         brings no end, the end is run by hand, so the loop cannot hang with "Listening…" on screen */
+      var wd=setInterval(function(){
+        if(a!==attempt||rec!==r||ended){ clearInterval(wd); return; }
+        if(Date.now()-last<WATCH)return;
+        clearInterval(wd); stalled=true; it.stall=(it.stall||0)+1;
+        try{ r.abort(); }catch(e){}
+        setTimeout(function(){ if(!ended)onEnd(); },1500);
+      },1000);
+      function onEnd(){
+        if(ended)return; ended=true; clearInterval(wd);
+        if(a!==attempt)return; rec=null;
+        if(stalled&&(!errored||errored==='aborted'))errored='no-speech';
         if(errored==='not-allowed'||errored==='service-not-allowed'){
           if(!it.tapTried){ needsTap=true; askTap(it); return; }
-          it.err=errored; setStage('','Micrófono bloqueado — abre la página en Safari o Chrome, fuera de la app'); $('cv-listo').hidden=true; return;
+          it.err=errored; micLost('Micrófono bloqueado',true); return;
         }
         if(man){
           /* the browser closed the session on silence or a hiccup; the answer is still open */
           if(!gotFinal&&heardInterim){ heardFinal=(heardFinal+' '+heardInterim).trim(); heardInterim=''; }
-          if(errored&&errored!=='no-speech'&&errored!=='aborted'){ it.err=errored; setStage('','Error: '+errored+' — «Otra vez» o «Listo»'); return; }
+          if(errored&&errored!=='no-speech'&&errored!=='aborted'){
+            /* audio-capture and network are usually a hiccup of the audio route: retry before giving up */
+            if(soft++<SOFT_MAX){ setStage('listening','Reconectando el micro…'); setTimeout(function(){ if(a===attempt)start(); },600*soft); return; }
+            it.err=errored; micLost('Error: '+errored,true); return;
+          }
           if(restarts++<60){ setTimeout(function(){ if(a===attempt)start(); },250); }
-          else { setStage('','El micro se cerró — toca Listo o «Otra vez»'); }
+          else { micLost('El micro se cerró',true); }
           return;
         }
         var text=heardText();
         if(text){ it.heard=text; it.err=null; captured(a); return; }
         if(errored==='no-speech'||!errored){
           if(!it.relisten){ it.relisten=true; listen(a); return; }   /* one silent retry */
-          it.err='no-speech'; setStage('','No oí nada — «Otra vez» o «Siguiente»'); return;
+          it.err='no-speech'; phaseNow='idle'; setStage('','No oí nada — «Otra vez» o «Siguiente»'); return;
         }
-        it.err=errored; setStage('','Error: '+errored+' — «Otra vez» o «Siguiente»');
-      };
+        it.err=errored; micLost('Error: '+errored);
+      }
+      r.onend=onEnd;
       rec=r;
-      try{ r.start(); }catch(e){ rec=null;
+      try{ r.start(); }catch(e){ rec=null; ended=true; clearInterval(wd);
         if(!it.tapTried){ needsTap=true; askTap(it); }
-        else { it.err='start'; setStage('','No pude abrir el micro'); $('cv-listo').hidden=true; } }
+        else { it.err='start'; micLost('No pude abrir el micro'); } }
     }
     start();
   }
   function captured(a){
-    setStage('','Anotado'); $('cv-listo').hidden=true;
+    phaseNow='idle'; setStage('','Anotado'); $('cv-listo').hidden=true; saveResume();
     var go=function(){ if(a!==attempt)return; timer=setTimeout(function(){ if(a===attempt)next(); },1200); };
     if(ackBox.checked)speak('Bien.',a,go,1.05); else go();
   }
@@ -875,12 +958,35 @@
     var it=cur(), text=heardText();
     bump();                                   /* stops the recogniser; its onend sees a stale attempt */
     if(text){ it.heard=text; it.err=null; it.listo=true; captured(attempt); }
-    else { it.err='no-speech'; setStage('','No oí nada — «Otra vez» o «Siguiente»'); $('cv-listo').hidden=true; }
+    else { it.err='no-speech'; phaseNow='idle'; setStage('','No oí nada — «Otra vez» o «Siguiente»'); $('cv-listo').hidden=true; }
+  });
+  /* v86: «Reactivar micro» — re-open the microphone inside the tap (iOS hands the audio route back
+     on getUserMedia) and listen again on the same item, keeping what was already heard */
+  micBtn.addEventListener('click',function(){
+    if(!S||!cur())return;
+    var it=cur(), keep=heardText();
+    it.mic=(it.mic||0)+1; it.tapTried=true;
+    bump(); var a=attempt;
+    reloadBtn.hidden=true; setStage('','Reactivando el micro…');
+    wakeOn();
+    micCheck().then(function(state){
+      if(a!==attempt)return;
+      paintDiag(state);
+      if(state!=='ok'&&state!=='no-api'){ micLost('El micro no vuelve ('+state+')'); return; }
+      listen(a,keep);
+    });
+  });
+  /* v86: «Recargar y seguir» — the last resort when the audio route stays wedged: save, reload, carry on */
+  reloadBtn.addEventListener('click',function(){
+    var it=cur(); if(it)it.reload=(it.reload||0)+1;
+    saveResume(); bump(); wakeOff();
+    try{ location.reload(); }catch(e){}
   });
 
   /* ---- flow ---- */
   function say(a){
-    var it=cur(); setStage('','Escucha'); $('cv-heard').textContent=''; $('cv-shown').textContent=''; $('cv-listo').hidden=true;
+    var it=cur(); phaseNow='say'; setStage('','Escucha'); $('cv-heard').textContent=''; $('cv-shown').textContent=''; $('cv-listo').hidden=true;
+    micBtn.className='btn ghost'; reloadBtn.hidden=true;
     speakItem(it.es,a,function(){ setTimeout(function(){ if(a!==attempt)return; if(needsTap)askTap(it); else listen(a); },parseInt(gapSel.value,10)||600); });
   }
   function next(){
@@ -888,8 +994,9 @@
     S.i++;
     if(S.i>=S.items.length){ finish(); return; }
     var it=cur(); it.t=Date.now();
+    saveResume();
     $('cv-phase').textContent=PHASE[it.phase]+'  ·  '+it.tag;
-    if(it.phase!==S.lastPhase){ S.lastPhase=it.phase; speak(PHASE_TTS[it.phase],a,function(){ setTimeout(function(){ if(a===attempt)say(a); },500); }); }
+    if(it.phase!==S.lastPhase){ S.lastPhase=it.phase; phaseNow='say'; speak(PHASE_TTS[it.phase],a,function(){ setTimeout(function(){ if(a===attempt)say(a); },500); }); }
     else say(a);
   }
   $('cv-next').addEventListener('click',function(){ next(); });
@@ -897,14 +1004,28 @@
   $('cv-again').addEventListener('click',function(){ var it=cur(); it.retries=(it.retries||0)+1; bump(); listen(attempt); });
   $('cv-show').addEventListener('click',function(){ var it=cur(); it.shown=true; $('cv-shown').textContent=it.es; });
   $('cv-stop').addEventListener('click',function(){ finish(); });
+  /* v86: the page went to the background (screen locked, another app) and came back mid-session:
+     take the wake lock again, and pick the item up where it was — said again if it was being said,
+     listened for again (keeping the words heard) if it was listening */
+  document.addEventListener('visibilitychange',function(){
+    if(!S||stage.hidden)return;
+    if(document.visibilityState==='hidden'){ hiddenAt=Date.now(); var h=cur(); if(h)h.hid=(h.hid||0)+1; saveResume(); return; }
+    wakeOn();
+    if(!hiddenAt)return;
+    var away=Date.now()-hiddenAt; hiddenAt=0;
+    if(away<1500||!cur())return;
+    var keep=heardText(), was=phaseNow;
+    if(was==='say'){ bump(); say(attempt); }
+    else if(was==='listen'){ bump(); listen(attempt,keep); }
+  });
 
   /* ---- transcript ---- */
   function finish(){
-    bump(); $('cv-listo').hidden=true;
+    bump(); $('cv-listo').hidden=true; phaseNow='idle'; wakeOff(); clearResume();
     var d=new Date(), ds=d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
     var v=voice();
     /* ceil = this set's grammar ceiling (what series B is judged against); vocab = the word ceiling */
-    var lines=['CONV1;set='+(S.set+1)+';ceil='+SETS[S.set].g+';vocab='+CONV_CEIL+';date='+ds+';voice='+(v?v.name:'?')+';gap='+gapSel.value+';rate='+rateSel.value+';en='+enSel.value+';submit='+(manual()?'button':'auto')+';min='+((Date.now()-S.t0)/60000).toFixed(1)];
+    var lines=['CONV1;set='+(S.set+1)+';ceil='+SETS[S.set].g+';vocab='+CONV_CEIL+';date='+ds+';voice='+(v?v.name:'?')+';gap='+gapSel.value+';rate='+rateSel.value+';en='+enSel.value+';submit='+(manual()?'button':'auto')+';wake='+wakeState+(S.resumed?';resumed=1':'')+';min='+((Date.now()-S.t0)/60000).toFixed(1)];
     S.items.forEach(function(it,k){
       if(k>S.i)return;
       var f=[];
@@ -913,6 +1034,11 @@
       if(it.shown)f.push('shown');
       if(it.tap)f.push('tap');
       if(it.listo)f.push('listo');
+      if(it.mic)f.push('mic='+it.mic);
+      if(it.stall)f.push('stall='+it.stall);
+      if(it.hid)f.push('hid='+it.hid);
+      if(it.reload)f.push('reload='+it.reload);
+      if(it.resumed)f.push('resumed');
       if(it.err)f.push('err='+it.err);
       if(it.heard)f.unshift('lang='+recLang(it));
       lines.push(it.tag+'|'+it.es+'|'+(it.heard||'')+(f.length?' #'+f.join(','):''));
@@ -929,6 +1055,23 @@
   });
   $('cv-new').addEventListener('click',function(){ fillSets(); doneBox.hidden=true; setup.hidden=false; $('cv-copy').textContent='Copiar transcript'; });
   $('cv-resetused').addEventListener('click',function(){ used=[]; sset(USED_KEY,used); fillSets(); });
+  /* v86: a session left half-way (Recargar y seguir, or a tab iOS reloaded after a lock) is offered
+     back for an hour; Seguir starts inside a tap, which iOS needs for the voice and the microphone */
+  var resumeBox=$('cv-resumebox'), pending=null;
+  function hideResume(){ pending=null; resumeBox.hidden=true; }
+  (function(){
+    var p=parse(lsGet(RESUME_KEY),null);
+    if(!p||p.v!==VERSION||!(Date.now()-p.at<3600000)||!SETS[p.set])return;
+    var its=buildItems(SETS[p.set]);
+    if(p.n!==its.length||!(p.i>=0&&p.i<its.length))return;
+    pending=p;
+    var mins=Math.max(1,Math.round((Date.now()-p.at)/60000));
+    $('cv-resumetxt').innerHTML='<b>Sesión a medias.</b> Set '+(p.set+1)+', en '+its[p.i].tag+' (hace '+mins+' min). «Seguir» vuelve a ese ítem; lo ya contestado queda en el transcript.';
+    resumeBox.hidden=false;
+  })();
+  $('cv-resume').addEventListener('click',function(){ if(pending)begin(pending.set,pending); });
+  $('cv-resumedrop').addEventListener('click',function(){ clearResume(); hideResume(); });
+  window.__convState=function(){ return {i:S?S.i:null,phase:phaseNow,wake:wakeState,tag:(S&&cur())?cur().tag:null}; };
 })();
 </script>
 </body>
