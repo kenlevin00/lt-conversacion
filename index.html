@@ -549,7 +549,6 @@
     <div class="actions" id="cv-ctrl">
       <button class="btn" type="button" id="cv-listo" hidden>Listo</button>
       <button class="btn ghost" type="button" id="cv-mic">Reactivar micro</button>
-      <button class="btn" type="button" id="cv-reload" hidden>Recargar y seguir</button>
       <button class="btn ghost" type="button" id="cv-repeat">Repetir</button>
       <button class="btn ghost" type="button" id="cv-show">Mostrar</button>
       <button class="btn ghost" type="button" id="cv-again">Otra vez</button>
@@ -612,7 +611,7 @@
   var voiceSel=$('cv-voice'), rateSel=$('cv-rate'), gapSel=$('cv-gap'), ackBox=$('cv-ack'), enSel=$('cv-enlang'), submitSel=$('cv-submit'), wakeSel=$('cv-wake');
   var setup=$('cv-setup'), stage=$('cv-stage'), doneBox=$('cv-done');
   var SR=window.SpeechRecognition||window.webkitSpeechRecognition;
-  $('cv-note').textContent='Sets progresivos: la gramática sube de la pista '+SETS[0].g+' a la '+SETS[SETS.length-1].g+' en '+SETS.length+' sets; el vocabulario llega hasta la pista '+CONV_CEIL+' en todos. La pantalla se queda encendida durante la sesión (Pantalla, arriba); si el micro se corta, «Reactivar micro» lo abre otra vez en la misma frase. La primera vez el navegador pedirá permiso para el micrófono.';
+  $('cv-note').textContent='Sets progresivos: la gramática sube de la pista '+SETS[0].g+' a la '+SETS[SETS.length-1].g+' en '+SETS.length+' sets; el vocabulario llega hasta la pista '+CONV_CEIL+' en todos. La pantalla se queda encendida durante la sesión (Pantalla, arriba); si el micro deja de responder, «Reactivar micro» reinicia la página y sigue en la misma frase con un toque. La primera vez el navegador pedirá permiso para el micrófono.';
   window.__convCeil=CONV_CEIL; window.__convSets=SETS;
 
   /* store first; browser storage second, for the top-level copy of the page where the
@@ -767,7 +766,7 @@
   var PHASE={W:'Calentamiento — dame el inglés',A:'Serie A — dame el inglés',B:'Serie B — contesta en español'};
   var PHASE_TTS={W:'Calentamiento. Dame el inglés.',A:'Serie A. Dame el inglés.',B:'Serie B. Contesta en español.'};
   function cur(){ return S.items[S.i]; }
-  function bump(){ attempt++; if(timer){clearTimeout(timer);timer=null;} if(rec){try{rec.abort();}catch(e){} rec=null;} if(window.speechSynthesis)speechSynthesis.cancel(); }
+  function bump(){ attempt++; if(timer){clearTimeout(timer);timer=null;} killRec(); if(window.speechSynthesis)speechSynthesis.cancel(); }   /* v87: stop, not abort — see killRec */
 
   $('cv-start').addEventListener('click',function(){ begin(parseInt(setSel.value,10)||0,null); });
   /* v86: one way in for a fresh session and for a resumed one (Recargar y seguir, or a tab iOS reloaded) */
@@ -828,11 +827,11 @@
   }
   function wakeOff(){ var l=wake; wake=null; if(l){ try{ l.release(); }catch(e){} } }
   var RESUME_KEY='conv:resume';
-  function saveResume(){
+  function saveResume(auto){
     if(!S)return;
     try{
-      lsSet(RESUME_KEY,JSON.stringify({v:VERSION,at:Date.now(),set:S.set,i:Math.max(0,S.i),t0:S.t0,n:S.items.length,
-        items:S.items.map(function(it){ return {heard:it.heard,repeats:it.repeats,retries:it.retries,shown:it.shown,tap:it.tap,listo:it.listo,err:it.err,mic:it.mic,stall:it.stall,hid:it.hid,reload:it.reload,resumed:it.resumed}; })}));
+      lsSet(RESUME_KEY,JSON.stringify({v:VERSION,at:Date.now(),set:S.set,i:Math.max(0,S.i),t0:S.t0,n:S.items.length,auto:auto?1:0,
+        items:S.items.map(function(it){ return {heard:it.heard,repeats:it.repeats,retries:it.retries,shown:it.shown,tap:it.tap,listo:it.listo,early:it.early,err:it.err,mic:it.mic,stall:it.stall,hid:it.hid,reload:it.reload,resumed:it.resumed}; })}));
     }catch(e){}
   }
   function clearResume(){ lsSet(RESUME_KEY,''); }
@@ -872,24 +871,44 @@
   function askTap(it){ it.tap=true; phaseNow='idle'; setStage('','Toca para contestar'); $('cv-answer').hidden=false; $('cv-listo').hidden=true; }
   var heardFinal='', heardInterim='';
   function heardText(){ return (heardFinal+' '+heardInterim).replace(/\s+/g,' ').trim(); }
-  /* v86: the microphone is gone — say so and make «Reactivar micro» the obvious button; once a
-     reconnect has already failed on this item, offer «Recargar y seguir» as well */
-  var micBtn=$('cv-mic'), reloadBtn=$('cv-reload');
+  /* v86: the microphone is gone — say so and make «Reactivar micro» the obvious button */
+  var micBtn=$('cv-mic');
   function micLost(msg,keepListo){
-    var it=cur(); phaseNow='idle';
-    setStage('',msg+(it&&it.mic?' — prueba «Recargar y seguir»':' — toca «Reactivar micro»'));
-    micBtn.className='btn'; reloadBtn.hidden=!(it&&it.mic);
+    phaseNow='idle';
+    setStage('',msg+' — toca «Reactivar micro»');
+    micBtn.className='btn';
     $('cv-listo').hidden=!(keepListo&&manual()&&heardText());
   }
+  /* v87: one recogniser at a time. Ken, 2026-09-30, on v86: he tapped Listo before speaking; the
+     recogniser was aborted mid-listen and a new one was started at once, and from then on nothing was
+     heard whatever he pressed — «Reactivar micro» and its getUserMedia included — while iOS showed the
+     microphone as in use. A recogniser is now STOPPED (abort only if it will not stop), and the next one
+     starts only once the previous one has ended, or after 1.5 s if its end never comes. */
+  var freeWait=null;
+  function killRec(){
+    var r=rec; rec=null; if(!r)return;
+    var done=false, w=new Promise(function(res){
+      r.__free=function(){ if(done)return; done=true; res(); };
+    });
+    freeWait=w;
+    w.then(function(){ if(freeWait===w)freeWait=null; });
+    setTimeout(function(){ if(!done){ try{ r.abort(); }catch(e){} } },700);
+    setTimeout(function(){ r.__free(); },1500);
+    try{ r.stop(); }catch(e){ try{ r.abort(); }catch(e2){} }
+  }
+  function whenFree(fn){ if(freeWait)freeWait.then(function(){ setTimeout(fn,150); }); else fn(); }
+  window.__convBusy=function(){ return {rec:!!rec, waiting:!!freeWait}; };
   var WATCH=window.__CV_WATCH||25000, SOFT_MAX=3;
   function listen(a,keep){
     var it=cur(), man=manual(); phaseNow='listen';
     setStage('listening',(it.phase==='B'?'Escuchando… (español)':'Listening… (English)')+(man?' · toca Listo al terminar':''));
     heardFinal=keep||''; heardInterim=''; $('cv-heard').textContent=heardFinal; $('cv-answer').hidden=true; $('cv-listo').hidden=!man;
-    micBtn.className='btn ghost'; reloadBtn.hidden=true;
+    micBtn.className='btn ghost';
     if(!SR){ it.err='no-SR'; phaseNow='idle'; setStage('','Este navegador no reconoce voz'); $('cv-listo').hidden=true; return; }
     var restarts=0, soft=0;
     function start(){
+      if(a!==attempt)return;
+      if(rec){ killRec(); whenFree(start); return; }   /* never two recognisers at once */
       var r; try{ r=new SR(); }catch(e){ it.err='ctor'; micLost('Sin reconocimiento'); return; }
       r.lang=recLang(it); r.interimResults=true; r.continuous=man; r.maxAlternatives=1;
       var errored=null, gotFinal=false, stalled=false, ended=false, last=Date.now();
@@ -903,18 +922,18 @@
         }
         $('cv-heard').textContent=heardText(); };
       r.onerror=function(ev){ if(a!==attempt)return; touch(); errored=ev.error; };
-      /* a recogniser that goes quiet — no result, no end, no error — is aborted; if even the abort
-         brings no end, the end is run by hand, so the loop cannot hang with "Listening…" on screen */
+      /* a recogniser that goes quiet — no result, no end, no error — is stopped; if even that brings no
+         end, the end is run by hand, so the loop cannot hang with "Listening…" on screen */
       var wd=setInterval(function(){
         if(a!==attempt||rec!==r||ended){ clearInterval(wd); return; }
         if(Date.now()-last<WATCH)return;
         clearInterval(wd); stalled=true; it.stall=(it.stall||0)+1;
-        try{ r.abort(); }catch(e){}
-        setTimeout(function(){ if(!ended)onEnd(); },1500);
+        killRec();
+        setTimeout(function(){ if(!ended)onEnd(); },1600);
       },1000);
       function onEnd(){
         if(ended)return; ended=true; clearInterval(wd);
-        if(a!==attempt)return; rec=null;
+        if(a!==attempt)return; if(rec===r)rec=null;
         if(stalled&&(!errored||errored==='aborted'))errored='no-speech';
         if(errored==='not-allowed'||errored==='service-not-allowed'){
           if(!it.tapTried){ needsTap=true; askTap(it); return; }
@@ -925,10 +944,10 @@
           if(!gotFinal&&heardInterim){ heardFinal=(heardFinal+' '+heardInterim).trim(); heardInterim=''; }
           if(errored&&errored!=='no-speech'&&errored!=='aborted'){
             /* audio-capture and network are usually a hiccup of the audio route: retry before giving up */
-            if(soft++<SOFT_MAX){ setStage('listening','Reconectando el micro…'); setTimeout(function(){ if(a===attempt)start(); },600*soft); return; }
+            if(soft++<SOFT_MAX){ setStage('listening','Reconectando el micro…'); setTimeout(function(){ whenFree(start); },600*soft); return; }
             it.err=errored; micLost('Error: '+errored,true); return;
           }
-          if(restarts++<60){ setTimeout(function(){ if(a===attempt)start(); },250); }
+          if(restarts++<60){ setTimeout(function(){ whenFree(start); },250); }
           else { micLost('El micro se cerró',true); }
           return;
         }
@@ -940,13 +959,13 @@
         }
         it.err=errored; micLost('Error: '+errored);
       }
-      r.onend=onEnd;
+      r.onend=function(){ if(r.__free)r.__free(); onEnd(); };
       rec=r;
-      try{ r.start(); }catch(e){ rec=null; ended=true; clearInterval(wd);
+      try{ r.start(); }catch(e){ if(rec===r)rec=null; ended=true; clearInterval(wd);
         if(!it.tapTried){ needsTap=true; askTap(it); }
         else { it.err='start'; micLost('No pude abrir el micro'); } }
     }
-    start();
+    whenFree(start);
   }
   function captured(a){
     phaseNow='idle'; setStage('','Anotado'); $('cv-listo').hidden=true; saveResume();
@@ -956,37 +975,33 @@
   $('cv-answer').addEventListener('click',function(){ cur().tapTried=true; bump(); listen(attempt); });
   $('cv-listo').addEventListener('click',function(){
     var it=cur(), text=heardText();
-    bump();                                   /* stops the recogniser; its onend sees a stale attempt */
-    if(text){ it.heard=text; it.err=null; it.listo=true; captured(attempt); }
-    else { it.err='no-speech'; phaseNow='idle'; setStage('','No oí nada — «Otra vez» o «Siguiente»'); $('cv-listo').hidden=true; }
+    if(!text){
+      /* v87: Listo before anything was heard leaves the recogniser running — stopping it here and
+         starting another is what wedged the microphone on 2026-09-30 */
+      it.early=(it.early||0)+1;
+      if(phaseNow==='listen'){ setStage('listening','Aún no oí nada — sigo escuchando'); return; }
+      it.err='no-speech'; phaseNow='idle'; setStage('','No oí nada — «Otra vez» o «Siguiente»'); $('cv-listo').hidden=true; return;
+    }
+    bump();                                   /* stops the recogniser; its end sees a stale attempt */
+    it.heard=text; it.err=null; it.listo=true; captured(attempt);
   });
-  /* v86: «Reactivar micro» — re-open the microphone inside the tap (iOS hands the audio route back
-     on getUserMedia) and listen again on the same item, keeping what was already heard */
+  /* v87: «Reactivar micro» reloads the page and carries on at the same item. v86 re-opened the
+     microphone in place (getUserMedia, then a new recogniser); on Ken's iPhone that did nothing once
+     the speech service was wedged, and a reload is the one thing that always resets it. The session is
+     saved first; after the reload one tap on «Seguir» says the item again — iOS needs that tap for the
+     voice and the microphone. */
   micBtn.addEventListener('click',function(){
     if(!S||!cur())return;
-    var it=cur(), keep=heardText();
-    it.mic=(it.mic||0)+1; it.tapTried=true;
-    bump(); var a=attempt;
-    reloadBtn.hidden=true; setStage('','Reactivando el micro…');
-    wakeOn();
-    micCheck().then(function(state){
-      if(a!==attempt)return;
-      paintDiag(state);
-      if(state!=='ok'&&state!=='no-api'){ micLost('El micro no vuelve ('+state+')'); return; }
-      listen(a,keep);
-    });
-  });
-  /* v86: «Recargar y seguir» — the last resort when the audio route stays wedged: save, reload, carry on */
-  reloadBtn.addEventListener('click',function(){
-    var it=cur(); if(it)it.reload=(it.reload||0)+1;
-    saveResume(); bump(); wakeOff();
-    try{ location.reload(); }catch(e){}
+    var it=cur(); it.mic=(it.mic||0)+1;
+    saveResume(true); bump(); wakeOff();
+    phaseNow='idle'; setStage('','Reiniciando el micro…');
+    setTimeout(function(){ try{ location.reload(); }catch(e){} },300);
   });
 
   /* ---- flow ---- */
   function say(a){
     var it=cur(); phaseNow='say'; setStage('','Escucha'); $('cv-heard').textContent=''; $('cv-shown').textContent=''; $('cv-listo').hidden=true;
-    micBtn.className='btn ghost'; reloadBtn.hidden=true;
+    micBtn.className='btn ghost';
     speakItem(it.es,a,function(){ setTimeout(function(){ if(a!==attempt)return; if(needsTap)askTap(it); else listen(a); },parseInt(gapSel.value,10)||600); });
   }
   function next(){
@@ -1034,6 +1049,7 @@
       if(it.shown)f.push('shown');
       if(it.tap)f.push('tap');
       if(it.listo)f.push('listo');
+      if(it.early)f.push('early='+it.early);
       if(it.mic)f.push('mic='+it.mic);
       if(it.stall)f.push('stall='+it.stall);
       if(it.hid)f.push('hid='+it.hid);
@@ -1066,8 +1082,11 @@
     if(p.n!==its.length||!(p.i>=0&&p.i<its.length))return;
     pending=p;
     var mins=Math.max(1,Math.round((Date.now()-p.at)/60000));
-    $('cv-resumetxt').innerHTML='<b>Sesión a medias.</b> Set '+(p.set+1)+', en '+its[p.i].tag+' (hace '+mins+' min). «Seguir» vuelve a ese ítem; lo ya contestado queda en el transcript.';
+    $('cv-resumetxt').innerHTML=(p.auto&&Date.now()-p.at<120000)
+      ? '<b>Micro reiniciado.</b> Set '+(p.set+1)+', en '+its[p.i].tag+'. Toca «Seguir la sesión» y vuelve a esa frase.'
+      : '<b>Sesión a medias.</b> Set '+(p.set+1)+', en '+its[p.i].tag+' (hace '+mins+' min). «Seguir» vuelve a ese ítem; lo ya contestado queda en el transcript.';
     resumeBox.hidden=false;
+    if(p.auto)setTimeout(function(){ try{ resumeBox.scrollIntoView({block:'center'}); }catch(e){} },50);
   })();
   $('cv-resume').addEventListener('click',function(){ if(pending)begin(pending.set,pending); });
   $('cv-resumedrop').addEventListener('click',function(){ clearResume(); hideResume(); });
